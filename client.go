@@ -1,205 +1,262 @@
-package networks
+package network
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/samber/lo"
+	"github.com/google/uuid"
 	"github.com/xander1235/gorest/constants"
 	"github.com/xander1235/gorest/constants/enums"
 	"github.com/xander1235/gorest/exceptions"
-	"github.com/xander1235/gorest/pojos"
+	"github.com/xander1235/gorest/exceptions/errors"
+	"github.com/xander1235/gorest/parsers"
+	"github.com/xander1235/gorest/types"
+	"go.uber.org/zap/buffer"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
 var (
-	IClient = &client{}
-	Client  = &http.Client{
-		Timeout: time.Second * 100,
+	NetworkClient = &networkClient{
+		client: &http.Client{
+			Timeout: time.Second * 100,
+		},
+		parser:      parsers.ParseResponse,
+		errorParser: parsers.ParseError,
+		requestType: enums.Json.ToString(),
 	}
 )
 
-func NewApmWrappedClient(wrappedClient *http.Client) {
-	Client = wrappedClient
+func NewApmWrapped(wrappedClient *http.Client) {
+	NetworkClient = &networkClient{
+		client:      wrappedClient,
+		parser:      parsers.ParseResponse,
+		errorParser: parsers.ParseError,
+		requestType: enums.Json.ToString(),
+	}
 }
 
-type client struct {
-	headers     map[string]any
-	params      map[string]any
+type networkClient struct {
+	client      *http.Client
+	headers     map[string]string
+	params      map[string]string
 	host        string
-	body        []byte
-	parser      func(string, any) *any
-	errorParser func(string) *any
+	body        any
+	multipart   *types.MultipartBody
+	parser      func(string, any) *errors.ErrorDetails
+	errorParser func(string) *errors.ErrorDetails
 	response    any
+	requestType string
 	ctx         context.Context
 }
 
-func (networkClient client) Response(response any) client {
-	networkClient.response = response
-	return networkClient
+func (nc networkClient) Response(response any) networkClient {
+	nc.response = response
+	return nc
 }
 
-func (networkClient client) Headers(headers map[string]any) client {
-	networkClient.headers = headers
-	return networkClient
+func (nc networkClient) Headers(headers map[string]string) networkClient {
+	nc.headers = headers
+	return nc
 }
 
-func (networkClient client) Params(params map[string]any) client {
-	networkClient.params = params
-	return networkClient
+func (nc networkClient) Params(params map[string]string) networkClient {
+	nc.params = params
+	return nc
 }
 
-func (networkClient client) Host(host string) client {
-	networkClient.host = host
-	return networkClient
+func (nc networkClient) Host(host string) networkClient {
+	nc.host = host
+	return nc
 }
 
-func (networkClient client) Body(body []byte) client {
-	networkClient.body = body
-	return networkClient
+func (nc networkClient) Body(body any) networkClient {
+	nc.body = body
+	return nc
 }
 
-func (networkClient client) Parser(parser func(string, any) *any) client {
-	networkClient.parser = parser
-	return networkClient
+func (nc networkClient) MultipartBody(multipart *types.MultipartBody) networkClient {
+	nc.multipart = multipart
+	nc.requestType = enums.Multipart.ToString()
+	return nc
 }
 
-func (networkClient client) ErrorParser(parser func(string) *any) client {
-	networkClient.errorParser = parser
-	return networkClient
+func (nc networkClient) RequestType(requestType enums.RequestType) networkClient {
+	nc.requestType = requestType.ToString()
+	return nc
 }
 
-func (networkClient client) WithContext(ctx context.Context) client {
-	networkClient.ctx = ctx
-	return networkClient
+func (nc networkClient) Parser(parser func(string, any) *errors.ErrorDetails) networkClient {
+	nc.parser = parser
+	return nc
 }
 
-func (networkClient client) Put(endpoint string, token string) *pojos.ResponseData {
-	return networkClient.send(enums.PUT, endpoint, token)
+func (nc networkClient) ErrorParser(parser func(string) *errors.ErrorDetails) networkClient {
+	nc.errorParser = parser
+	return nc
 }
 
-func (networkClient client) Delete(endpoint string, token string) *pojos.ResponseData {
-	return networkClient.send(enums.DELETE, endpoint, token)
+func (nc networkClient) WithContext(ctx context.Context) networkClient {
+	nc.ctx = ctx
+	return nc
 }
 
-func (networkClient client) Patch(endpoint string, token string) *pojos.ResponseData {
-	return networkClient.send(enums.PATCH, endpoint, token)
+func (nc networkClient) Put(endpoint string) *errors.ErrorDetails {
+	return nc.send(enums.PUT, endpoint)
 }
 
-func (networkClient client) Post(endpoint string, token string) *pojos.ResponseData {
-	return networkClient.send(enums.POST, endpoint, token)
+func (nc networkClient) Delete(endpoint string) *errors.ErrorDetails {
+	return nc.send(enums.DELETE, endpoint)
 }
 
-func (networkClient client) Get(endpoint string, token string) *pojos.ResponseData {
-	return networkClient.send(enums.GET, endpoint, token)
+func (nc networkClient) Patch(endpoint string) *errors.ErrorDetails {
+	return nc.send(enums.PATCH, endpoint)
 }
 
-func (networkClient client) send(method enums.HttpMethods, endpoint string, token string) *pojos.ResponseData {
-	request, err := http.NewRequest(method.String(), networkClient.host+endpoint, bytes.NewBuffer(networkClient.body))
-	request.Header = http.Header{
-		"Content-Type": {"application/json"},
-		"X-AUTH-TOKEN": {token},
-		"X-CLIENT-ID":  {"aether"},
+func (nc networkClient) Post(endpoint string) *errors.ErrorDetails {
+	return nc.send(enums.POST, endpoint)
+}
+
+func (nc networkClient) Get(endpoint string) *errors.ErrorDetails {
+	return nc.send(enums.GET, endpoint)
+}
+
+func (nc networkClient) send(method enums.HttpMethods, endpoint string) *errors.ErrorDetails {
+	switch nc.requestType {
+	case enums.Json.ToString():
+		return nc.sendJson(method, endpoint)
+	case enums.Multipart.ToString():
+		return nc.sendMultipart(method, endpoint)
+	case enums.FormUrlEncoded.ToString():
+		return nc.sendFormUrlEncoded(method, endpoint)
+	default:
+		return exceptions.GenericException(constants.InvalidRequestType, constants.InvalidRequestType, 500)
 	}
-	if networkClient.headers != nil {
-		for _, key := range lo.Keys(networkClient.headers) {
-			if value, ok := networkClient.headers[key]; ok {
-				request.Header.Add(key, value.(string))
-			}
+}
+
+func (nc networkClient) sendJson(method enums.HttpMethods, endpoint string) *errors.ErrorDetails {
+	var jsonBytes buffer.Buffer
+	var marshalErr error
+	if nc.body != nil {
+		marshalErr = json.NewEncoder(&jsonBytes).Encode(nc.body)
+		if marshalErr != nil {
+			return exceptions.GenericException(marshalErr.Error(), constants.SomethingWentWrong, 500)
 		}
+	}
+	request, err := http.NewRequest(method.String(), nc.host+endpoint, bytes.NewBuffer(jsonBytes.Bytes()))
+
+	if err != nil {
+		return exceptions.GenericException(constants.SomethingWentWrong, err.Error(), 500)
+	}
+
+	return nc.sendRequest(request)
+
+}
+
+func (nc networkClient) sendMultipart(method enums.HttpMethods, endpoint string) *errors.ErrorDetails {
+	var jsonBytes *bytes.Buffer
+	var err error
+	if nc.multipart != nil {
+		jsonBytes, nc.requestType, err = nc.multipart.CreateBuffer()
+		if err != nil {
+			return exceptions.GenericException(err.Error(), constants.SomethingWentWrong, 500)
+		}
+	}
+	request, err := http.NewRequest(method.String(), nc.host+endpoint, bytes.NewBuffer(jsonBytes.Bytes()))
+	if err != nil {
+		//configs.Sugar.Error(constants.SomethingWentWrongDownstream + err.Error())
+		return exceptions.GenericException(err.Error(), constants.SomethingWentWrong, 500)
+	}
+
+	return nc.sendRequest(request)
+}
+
+func (nc networkClient) sendRequest(request *http.Request) *errors.ErrorDetails {
+	request.Header = http.Header{
+		constants.ContentType: {nc.requestType},
+		constants.XRequestId:  {uuid.New().String()},
+	}
+	for key, value := range nc.headers {
+		request.Header.Add(key, value)
 	}
 
 	queryParams := request.URL.Query()
-
-	if networkClient.params != nil {
-		for _, key := range lo.Keys(networkClient.params) {
-			if value, ok := networkClient.params[key]; ok {
-				queryParams.Add(key, value.(string))
-			}
-		}
+	for key, value := range nc.params {
+		queryParams.Add(key, value)
 	}
-
 	request.URL.RawQuery = queryParams.Encode()
 
-	res, err := Client.Do(request.WithContext(networkClient.ctx))
-	code := 500
+	if nc.ctx != nil {
+		request = request.WithContext(nc.ctx)
+	}
+
+	res, err := nc.client.Do(request)
+
 	if err != nil {
-		//utils.Sugar.Error("Something went wrong while calling downstream service: " + err.Error())
-		return &pojos.ResponseData{
-			Error:        exceptions.GenericException("Something went wrong while calling downstream service: "+err.Error(), nil, code),
-			ResponseCode: &code,
-		}
+		//configs.Sugar.Error(constants.SomethingWentWrongDownstream + err.Error())
+		return exceptions.GenericException(err.Error(), constants.SomethingWentWrong, 500)
 	} else {
 		defer func(Body io.ReadCloser) {
 			err := Body.Close()
 			if err != nil {
-				//utils.Sugar.Error("Something went wrong while calling downstream service: " + err.Error())
+				//configs.Sugar.Error(constants.SomethingWentWrongDownstream + err.Error())
 			}
 		}(res.Body)
 
 		bodyBytes, err := io.ReadAll(res.Body)
 
 		if err != nil {
-			//utils.Sugar.Error(err.Error())
-			return &pojos.ResponseData{
-				Error:        exceptions.GenericException("Something went wrong while calling downstream service: "+err.Error(), nil, code),
-				ResponseCode: &code,
-			}
+			//configs.Sugar.Error(err.Error())
+			return exceptions.GenericException(err.Error(), constants.SomethingWentWrong, res.StatusCode)
 		}
 		bodyString := string(bodyBytes)
 		var resBody bytes.Buffer
 		err = json.Indent(&resBody, bodyBytes, "", "\t")
 		if err == nil {
-			bodyString = string(resBody.Bytes())
+			bodyString = resBody.String()
 		}
 		uri := request.URL.String()
-		uri = "<-- " + strconv.Itoa(res.StatusCode) + " : " + method.String() + " " + uri
+		uri = "<-- " + strconv.Itoa(res.StatusCode) + " : " + request.Method + " " + uri
 		switch enums.HttpStatus(res.StatusCode).SeriesType() {
 		case enums.Successful:
-			if networkClient.response != nil && networkClient.parser != nil {
-				appErr := networkClient.parser(bodyString, networkClient.response)
-				//utils.Sugar.Infow(uri + " success, Response: \n" + bodyString)
-				return &pojos.ResponseData{
-					ResponseCode: &res.StatusCode,
-					Error:        appErr,
-				}
-			}
-			if networkClient.response != nil {
-				//utils.Sugar.Infow(uri + " success, Response: \n" + bodyString)
-				networkClient.response = bodyString
-				return &pojos.ResponseData{
-					ResponseCode: &res.StatusCode,
-					Response:     bodyString,
-				}
+			if nc.response != nil {
+				appErr := nc.parser(bodyString, nc.response)
+				//configs.Sugar.Infow(uri + " success, Response: \n" + bodyString)
+				return appErr
 			}
 			return nil
 		case enums.ClientError:
-			//utils.Sugar.Infow(uri + " failure, Response: \n" + bodyString)
-			networkClient.response = bodyString
-			if networkClient.errorParser != nil {
-				return &pojos.ResponseData{
-					ResponseCode: &res.StatusCode,
-					Error:        exceptions.GenericException("", networkClient.errorParser(bodyString), res.StatusCode),
-				}
-			}
-			return &pojos.ResponseData{
-				ResponseCode: &res.StatusCode,
-				Error:        exceptions.GenericException(bodyString, nil, res.StatusCode),
-				Response:     bodyString,
-			}
-
+			//configs.Sugar.Infow(uri + " failure, Response: \n" + bodyString)
+			return exceptions.GenericException(nc.errorParser(bodyString).Message, bodyString, res.StatusCode)
 		case enums.ServerError:
-			//utils.Sugar.Infow(uri + " failure, Response: \n" + bodyString)
-			networkClient.response = bodyString
-			return &pojos.ResponseData{
-				ResponseCode: &res.StatusCode,
-				Error:        exceptions.GenericException(constants.SomethingWentWrong, nil, res.StatusCode),
-				Response:     bodyString,
-			}
+			//configs.Sugar.Infow(uri + " failure, Response: \n" + bodyString)
+			return exceptions.GenericException(constants.SomethingWentWrong, bodyString, res.StatusCode)
 		}
 	}
 	return nil
+}
+
+func (nc networkClient) sendFormUrlEncoded(method enums.HttpMethods, endpoint string) *errors.ErrorDetails {
+	data := url.Values{}
+
+	for k, v := range nc.body.(map[string]string) {
+		data.Set(k, v)
+	}
+
+	// Encode the form data into a URL-encoded string
+	encodedData := data.Encode()
+
+	// Create a new HTTP request with the encoded data as the body
+	request, err := http.NewRequest(method.String(), nc.host+endpoint, strings.NewReader(encodedData))
+	if err != nil {
+		//configs.Sugar.Error(constants.SomethingWentWrongDownstream + err.Error())
+		return exceptions.GenericException(err.Error(), constants.SomethingWentWrong, 500)
+	}
+
+	return nc.sendRequest(request)
+
 }

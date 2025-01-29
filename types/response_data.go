@@ -1,4 +1,4 @@
-package pojos
+package types
 
 type ResponseData struct {
 	ResponseCode *int

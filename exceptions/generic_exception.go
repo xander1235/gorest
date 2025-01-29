@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func GenericException(message string, error *any, httpStatus int) *errors.ErrorDetails {
+func GenericException(message string, error any, httpStatus int) *errors.ErrorDetails {
 	return &errors.ErrorDetails{
 		ErrorTimestamp: time.Now().UnixMilli(),
 		Message:        message,

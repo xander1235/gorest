@@ -1,48 +1,24 @@
 package parsers
 
 import (
-	"aether_go/constants"
-	"aether_go/exceptions"
-	"aether_go/exceptions/errors"
-	"aether_go/pojos"
 	"encoding/json"
-	"go.uber.org/zap/buffer"
+	"github.com/xander1235/gorest/constants"
+	"github.com/xander1235/gorest/exceptions"
+	"github.com/xander1235/gorest/exceptions/errors"
 	"strings"
 	"time"
 )
 
-func ParseThreedotsBaseResponseError(value string) *errors.ThreedotsError {
-	var baseResponse pojos.BaseResponse
-	unmarshalErr := json.NewDecoder(strings.NewReader(value)).Decode(&baseResponse)
+func ParseError(value string) *errors.ErrorDetails {
+	var genError errors.ErrorDetails
+	unmarshalErr := json.NewDecoder(strings.NewReader(value)).Decode(&genError)
 	if unmarshalErr != nil {
-		return exceptions.InternalServerException(constants.SomethingWentWrong)
+		return exceptions.GenericException(constants.SomethingWentWrong, nil, 500)
 	}
-	var jsonBytes buffer.Buffer
-	encodingErr := json.NewEncoder(&jsonBytes).Encode(baseResponse.Data)
-	if encodingErr != nil {
-		return exceptions.InternalServerException(constants.SomethingWentWrong)
-	}
-	var threedotsError errors.ErrorDetails
-	unmarshalErr2 := json.NewDecoder(strings.NewReader(jsonBytes.String())).Decode(&threedotsError)
-	if unmarshalErr2 != nil {
-		return exceptions.InternalServerException(constants.SomethingWentWrong)
-	}
-	return &errors.ThreedotsError{
+	return &errors.ErrorDetails{
 		ErrorTimestamp: time.Now().UTC().Unix(),
-		Message:        threedotsError.Message,
-		ResponseCode:   threedotsError.ResponseCode,
-	}
-}
-
-func ParseThreedotsError(value string) *errors.ThreedotsError {
-	var threedotsError errors.ErrorDetails
-	unmarshalErr := json.NewDecoder(strings.NewReader(value)).Decode(&threedotsError)
-	if unmarshalErr != nil {
-		return exceptions.InternalServerException(constants.SomethingWentWrong)
-	}
-	return &errors.ThreedotsError{
-		ErrorTimestamp: time.Now().UTC().Unix(),
-		Message:        threedotsError.Message,
-		ResponseCode:   threedotsError.ResponseCode,
+		Message:        genError.Message,
+		ResponseCode:   genError.ResponseCode,
+		Error:          value,
 	}
 }

@@ -31,6 +31,11 @@ var (
 	}
 )
 
+// NewApmWrapped initializes the networkClient with a wrapped HTTP client.
+// This allows for custom HTTP client configurations.
+//
+// Parameters:
+// - wrappedClient: A custom HTTP client to use.
 func NewApmWrapped(wrappedClient *http.Client) {
 	NetworkClient = &networkClient{
 		client:      wrappedClient,
@@ -40,6 +45,13 @@ func NewApmWrapped(wrappedClient *http.Client) {
 	}
 }
 
+// networkClient is a custom HTTP client that provides methods for making HTTP requests with configurable headers, parameters, and body.
+// It supports JSON, multipart, and form URL encoded request types.
+//
+// Example:
+// client := &networkClient{}
+// client.Headers(map[string]string{"Authorization": "Bearer token"})
+// response := client.Get("/api/resource")
 type networkClient struct {
 	client      *http.Client
 	headers     map[string]string
@@ -54,77 +66,158 @@ type networkClient struct {
 	ctx         context.Context
 }
 
+// Response sets the response for the networkClient.
+// This method is chainable and returns the updated networkClient.
+//
+// Parameters:
+// - response: The response object to set.
 func (nc networkClient) Response(response any) networkClient {
 	nc.response = response
 	return nc
 }
 
+// Headers sets custom headers for the networkClient.
+// This method is chainable and returns the updated networkClient.
+//
+// Parameters:
+// - headers: A map of header key-value pairs.
 func (nc networkClient) Headers(headers map[string]string) networkClient {
 	nc.headers = headers
 	return nc
 }
 
+// Params sets query parameters for the networkClient.
+// This method is chainable and returns the updated networkClient.
+//
+// Parameters:
+// - params: A map of query parameter key-value pairs.
 func (nc networkClient) Params(params map[string]string) networkClient {
 	nc.params = params
 	return nc
 }
 
+// Host sets the base URL for the networkClient.
+// This method is chainable and returns the updated networkClient.
+//
+// Parameters:
+// - host: The base URL for the requests.
 func (nc networkClient) Host(host string) networkClient {
 	nc.host = host
 	return nc
 }
 
+// Body sets the body of the request for the networkClient.
+// This method is chainable and returns the updated networkClient.
+//
+// Parameters:
+// - body: The body of the request.
 func (nc networkClient) Body(body any) networkClient {
 	nc.body = body
 	return nc
 }
 
+// MultipartBody sets the multipart body for the networkClient.
+// This method is chainable and updates the request type to multipart.
+//
+// Parameters:
+// - multipart: The multipart body to set.
 func (nc networkClient) MultipartBody(multipart *types.MultipartBody) networkClient {
 	nc.multipart = multipart
 	nc.requestType = enums.Multipart.ToString()
 	return nc
 }
 
+// RequestType sets the type of request (e.g., JSON, multipart).
+// This method is chainable and returns the updated networkClient.
+//
+// Parameters:
+// - requestType: The type of request to set.
 func (nc networkClient) RequestType(requestType enums.RequestType) networkClient {
 	nc.requestType = requestType.ToString()
 	return nc
 }
 
+// Parser sets the function used to parse responses.
+// This method is chainable and returns the updated networkClient.
+//
+// Parameters:
+// - parser: The function to parse responses.
 func (nc networkClient) Parser(parser func(string, any) *errors.ErrorDetails) networkClient {
 	nc.parser = parser
 	return nc
 }
 
+// ErrorParser sets the function used to parse errors.
+// This method is chainable and returns the updated networkClient.
+//
+// Parameters:
+// - parser: The function to parse errors.
 func (nc networkClient) ErrorParser(parser func(string) *errors.ErrorDetails) networkClient {
 	nc.errorParser = parser
 	return nc
 }
 
+// WithContext sets the context for the networkClient.
+// This method is chainable and returns the updated networkClient.
+//
+// Parameters:
+// - ctx: The context to set.
 func (nc networkClient) WithContext(ctx context.Context) networkClient {
 	nc.ctx = ctx
 	return nc
 }
 
+// Put sends a PUT request to the specified endpoint.
+// This method is a convenience wrapper around the Send method.
+//
+// Parameters:
+// - endpoint: The endpoint to send the request to.
 func (nc networkClient) Put(endpoint string) *errors.ErrorDetails {
 	return nc.send(enums.PUT, endpoint)
 }
 
+// Delete sends a DELETE request to the specified endpoint.
+// This method is a convenience wrapper around the Send method.
+//
+// Parameters:
+// - endpoint: The endpoint to send the request to.
 func (nc networkClient) Delete(endpoint string) *errors.ErrorDetails {
 	return nc.send(enums.DELETE, endpoint)
 }
 
+// Patch sends a PATCH request to the specified endpoint.
+// This method is a convenience wrapper around the Send method.
+//
+// Parameters:
+// - endpoint: The endpoint to send the request to.
 func (nc networkClient) Patch(endpoint string) *errors.ErrorDetails {
 	return nc.send(enums.PATCH, endpoint)
 }
 
+// Post sends a POST request to the specified endpoint.
+// This method is a convenience wrapper around the Send method.
+//
+// Parameters:
+// - endpoint: The endpoint to send the request to.
 func (nc networkClient) Post(endpoint string) *errors.ErrorDetails {
 	return nc.send(enums.POST, endpoint)
 }
 
+// Get sends a GET request to the specified endpoint.
+// This method is a convenience wrapper around the Send method.
+//
+// Parameters:
+// - endpoint: The endpoint to send the request to.
 func (nc networkClient) Get(endpoint string) *errors.ErrorDetails {
 	return nc.send(enums.GET, endpoint)
 }
 
+// Send sends an HTTP request based on the configured parameters and body.
+// It determines the request type and calls the appropriate method to send the request.
+//
+// Parameters:
+// - method: The HTTP method to use (GET, POST, etc.).
+// - endpoint: The endpoint to send the request to.
 func (nc networkClient) send(method enums.HttpMethods, endpoint string) *errors.ErrorDetails {
 	switch nc.requestType {
 	case enums.Json.ToString():
@@ -138,6 +231,12 @@ func (nc networkClient) send(method enums.HttpMethods, endpoint string) *errors.
 	}
 }
 
+// SendJson sends a JSON request to the specified endpoint.
+// This method is called by the send method when the request type is JSON.
+//
+// Parameters:
+// - method: The HTTP method to use.
+// - endpoint: The endpoint to send the request to.
 func (nc networkClient) sendJson(method enums.HttpMethods, endpoint string) *errors.ErrorDetails {
 	var jsonBytes buffer.Buffer
 	var marshalErr error
@@ -157,6 +256,12 @@ func (nc networkClient) sendJson(method enums.HttpMethods, endpoint string) *err
 
 }
 
+// SendMultipart sends a multipart request to the specified endpoint.
+// This method is called by the send method when the request type is multipart.
+//
+// Parameters:
+// - method: The HTTP method to use.
+// - endpoint: The endpoint to send the request to.
 func (nc networkClient) sendMultipart(method enums.HttpMethods, endpoint string) *errors.ErrorDetails {
 	var jsonBytes *bytes.Buffer
 	var err error
@@ -175,6 +280,11 @@ func (nc networkClient) sendMultipart(method enums.HttpMethods, endpoint string)
 	return nc.sendRequest(request)
 }
 
+// SendRequest sends the actual HTTP request and handles the response.
+// It sets the headers and query parameters before executing the request.
+//
+// Parameters:
+// - request: The HTTP request to send.
 func (nc networkClient) sendRequest(request *http.Request) *errors.ErrorDetails {
 	request.Header = http.Header{
 		constants.ContentType: {nc.requestType},
@@ -240,6 +350,12 @@ func (nc networkClient) sendRequest(request *http.Request) *errors.ErrorDetails 
 	return nil
 }
 
+// SendFormUrlEncoded sends a form URL encoded request to the specified endpoint.
+// This method is called by the send method when the request type is form URL encoded.
+//
+// Parameters:
+// - method: The HTTP method to use.
+// - endpoint: The endpoint to send the request to.
 func (nc networkClient) sendFormUrlEncoded(method enums.HttpMethods, endpoint string) *errors.ErrorDetails {
 	data := url.Values{}
 

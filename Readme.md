@@ -28,10 +28,19 @@ import (
     "github.com/xander1235/gorest/networks"
 )
 
+type Response struct {
+    Name string `json:"name"`
+	Address string `json:"address"`
+}
+
 func main() {
+	
+	var response Response
+	
     client := networks.NetworkClient.
         Host("https://api.example.com").
         Headers(map[string]string{"Authorization": "Bearer token"}).
+		Response(&response).
         WithContext(context.Background())
 
     client.Body(map[string]string{"key": "value"}).Post("/json-endpoint")
@@ -81,6 +90,10 @@ func main() {
     client.Body(map[string]string{"key": "value"}).RequestType(enums.FormUrlEncoded).Post("/form-endpoint")
 }
 ```
+
+
+
+
 
 ## Contributing
 

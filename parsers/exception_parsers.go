@@ -1,3 +1,4 @@
+// parsers package contains the parsing logic.
 package parsers
 
 import (
@@ -9,6 +10,9 @@ import (
 	"time"
 )
 
+// ParseError parses the error response from the server.
+// It decodes the JSON response and returns an ErrorDetails instance.
+// If the decoding fails, it returns a generic error.
 func ParseError(value string) *errors.ErrorDetails {
 	var genError errors.ErrorDetails
 	unmarshalErr := json.NewDecoder(strings.NewReader(value)).Decode(&genError)

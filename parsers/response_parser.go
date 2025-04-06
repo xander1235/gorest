@@ -1,3 +1,4 @@
+// parsers package contains the parsing logic.
 package parsers
 
 import (
@@ -7,6 +8,9 @@ import (
 	"strings"
 )
 
+// ParseResponse parses the response from the server.
+// It decodes the JSON response and returns an ErrorDetails instance.
+// If the decoding fails, it returns a generic error.
 func ParseResponse(value string, res any) *errors.ErrorDetails {
 	unMarshalError := json.NewDecoder(strings.NewReader(value)).Decode(res)
 	if unMarshalError != nil {

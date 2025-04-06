@@ -287,8 +287,8 @@ func (nc networkClient) sendMultipart(method enums.HttpMethods, endpoint string)
 // - request: The HTTP request to send.
 func (nc networkClient) sendRequest(request *http.Request) *errors.ErrorDetails {
 	request.Header = http.Header{
-		constants.ContentType: {nc.requestType},
-		constants.XRequestId:  {uuid.New().String()},
+		constants.ContentType: []string{nc.requestType},
+		constants.XRequestId:  []string{uuid.New().String()},
 	}
 	for key, value := range nc.headers {
 		request.Header.Add(key, value)
@@ -311,10 +311,7 @@ func (nc networkClient) sendRequest(request *http.Request) *errors.ErrorDetails 
 		return exceptions.GenericException(err.Error(), constants.SomethingWentWrong, 500)
 	} else {
 		defer func(Body io.ReadCloser) {
-			err := Body.Close()
-			if err != nil {
-				//configs.Sugar.Error(constants.SomethingWentWrongDownstream + err.Error())
-			}
+			_ = Body.Close() // Intentionally ignoring error as we can't do much with it during deferred close
 		}(res.Body)
 
 		bodyBytes, err := io.ReadAll(res.Body)
@@ -329,8 +326,8 @@ func (nc networkClient) sendRequest(request *http.Request) *errors.ErrorDetails 
 		if err == nil {
 			bodyString = resBody.String()
 		}
-		uri := request.URL.String()
-		uri = "<-- " + strconv.Itoa(res.StatusCode) + " : " + request.Method + " " + uri
+		// Build request information string for potential logging
+		_ = "<-- " + strconv.Itoa(res.StatusCode) + " : " + request.Method + " " + request.URL.String()
 		switch enums.HttpStatus(res.StatusCode).SeriesType() {
 		case enums.Successful:
 			if nc.response != nil {

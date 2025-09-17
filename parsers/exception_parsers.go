@@ -3,6 +3,8 @@ package parsers
 
 import (
 	"encoding/json"
+	inbuildErr "errors"
+	"fmt"
 	"github.com/xander1235/gorest/constants"
 	"github.com/xander1235/gorest/exceptions"
 	"github.com/xander1235/gorest/exceptions/errors"
@@ -23,6 +25,6 @@ func ParseError(value string) *errors.ErrorDetails {
 		ErrorTimestamp: time.Now().UTC().Unix(),
 		Message:        genError.Message,
 		ResponseCode:   genError.ResponseCode,
-		Error:          value,
+		Error:          inbuildErr.New(fmt.Sprintf("Error:%s", value)),
 	}
 }

@@ -67,7 +67,7 @@ func demonstratGlobalInitialization(logger *zap.Logger) {
 	log.Println("\n=== Step 1: Global Client Initialization ===")
 
 	// Configure global defaults once at application startup
-	// These settings apply to gorest.Client when used directly
+	// These settings apply to gorest.NetworkClient when used directly
 	gorest.Initialize(
 		// Basic configuration
 		gorest.WithTimeout(30*time.Second),
@@ -129,7 +129,7 @@ func demonstrateGlobalClientUsage() {
 	// Use the global client with applied configuration
 	// This inherits all the settings from Initialize()
 	var user User
-	err := gorest.Client.
+	err := gorest.NetworkClient.
 		Host("https://jsonplaceholder.typicode.com"). // Public testing API
 		Headers(map[string]string{
 			"Authorization":    "Bearer demo-token",

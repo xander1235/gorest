@@ -64,21 +64,17 @@ type NetworkClient struct {
 	// Shared to enable connection pooling and reuse across requests.
 	httpClient *http.Client
 
-	// rateLimiter controls the rate of requests using token bucket algorithm.
-	// Shared to maintain consistent rate limiting across all requests from this client.
-	rateLimiter *rate.Limiter
-
-	// circuitBreaker provides fault tolerance by tracking failure rates.
-	// Shared to accumulate failure statistics across requests for proper circuit state management.
-	circuitBreaker *CircuitBreaker
-
 	// logger provides structured logging for request/response tracing and debugging.
 	// Shared to maintain consistent logging configuration and output destination.
 	logger *zap.Logger
 
-	// endpointConfigs stores per-endpoint configuration overrides with pattern matching support.
-	// Shared as endpoint policies should be consistent across all requests to the same endpoint.
+	// endpointConfigs stores per-endpoint configuration with rate limiters and circuit breakers.
+	// Each endpoint gets its own isolated rate limiter and circuit breaker for proper isolation.
 	endpointConfigs map[string]*EndpointConfig
+
+	// defaultEndpointConfig provides fallback configuration for endpoints without specific config.
+	// Contains default rate limiter, circuit breaker, retry, and timeout settings.
+	defaultEndpointConfig *EndpointConfig
 
 	// === CONFIGURATION DEFAULTS ===
 	// These are client-level defaults that can be overridden per request
@@ -87,9 +83,6 @@ type NetworkClient struct {
 	// Used for organization-wide standards like User-Agent, Accept headers, etc.
 	defaultHeaders map[string]string
 
-	// retryConfig defines the default retry behavior for failed requests.
-	// Includes maximum retry attempts, base delay, and backoff strategy.
-	retryConfig *RetryConfig
 
 	// === REQUEST-SPECIFIC DATA (Smart copy-on-write for thread safety) ===
 	// These fields are managed by the smart copy-on-write pattern
@@ -179,6 +172,16 @@ func newDefaultClient() *NetworkClient {
 		errorParser:     parsers.ParseError,
 		requestType:     enums.Json.ToString(),
 		endpointConfigs: make(map[string]*EndpointConfig),
+		defaultEndpointConfig: &EndpointConfig{
+			// No rate limiting by default - maximum throughput
+			rateLimiter:    nil,
+			// No circuit breaker by default - let all requests through
+			circuitBreaker: nil,
+			// No custom timeout - use client default
+			timeout:        0,
+			// No retry config - single attempt by default
+			retryConfig:    nil,
+		},
 		defaultHeaders:  make(map[string]string),
 		// requestID starts empty, indicating this is a fresh client
 	}
@@ -669,13 +672,8 @@ func (nc *NetworkClient) getEndpointConfig(endpoint string) *EndpointConfig {
 		}
 	}
 
-	// 3. Return default configuration (fallback)
-	return &EndpointConfig{
-		rateLimiter:    nc.rateLimiter,
-		circuitBreaker: nc.circuitBreaker,
-		retryConfig:    nc.retryConfig,
-		// timeout defaults to client timeout (handled in HTTP client)
-	}
+	// 3. Return default endpoint configuration (fallback)
+	return nc.defaultEndpointConfig
 }
 
 // === INTERNAL IMPLEMENTATION ===
@@ -709,12 +707,10 @@ func (nc *NetworkClient) copyForRequest() *NetworkClient {
 	return &NetworkClient{
 		// === SHARED INFRASTRUCTURE (same references) ===
 		httpClient:      nc.httpClient,
-		rateLimiter:     nc.rateLimiter,
-		circuitBreaker:  nc.circuitBreaker,
 		logger:          nc.logger,
 		endpointConfigs: nc.endpointConfigs,
 		defaultHeaders:  nc.defaultHeaders,
-		retryConfig:     nc.retryConfig,
+		defaultEndpointConfig: nc.defaultEndpointConfig,
 		parser:          nc.parser,
 		errorParser:     nc.errorParser,
 

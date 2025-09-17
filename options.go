@@ -135,9 +135,9 @@ func WithTimeout(timeout time.Duration) ClientOption {
 
 // === RATE LIMITING OPTIONS ===
 
-// WithRateLimit configures client-wide rate limiting using the token bucket algorithm.
-// Rate limiting prevents overwhelming downstream services and helps stay within API quotas.
-// Individual endpoints can override this with their own rate limiters.
+// WithRateLimit configures default rate limiting for all endpoints using the token bucket algorithm.
+// This sets the default rate limiter for endpoints without specific configuration.
+// Individual endpoints can override this default with WithEndpointConfig.
 //
 // Token bucket algorithm benefits:
 //   - Smooth traffic: Allows steady request rates with burst capacity
@@ -166,7 +166,7 @@ func WithTimeout(timeout time.Duration) ClientOption {
 //   - rate.Limit(0): Block all requests
 func WithRateLimit(rps rate.Limit, burst int) ClientOption {
 	return func(nc *NetworkClient) {
-		nc.rateLimiter = rate.NewLimiter(rps, burst)
+		nc.defaultEndpointConfig.rateLimiter = rate.NewLimiter(rps, burst)
 	}
 }
 
@@ -202,7 +202,7 @@ func WithRateLimit(rps rate.Limit, burst int) ClientOption {
 //   - Development/testing: Disable circuit breaker
 func WithCircuitBreaker(config CircuitBreakerConfig) ClientOption {
 	return func(nc *NetworkClient) {
-		nc.circuitBreaker = NewCircuitBreaker(config)
+		nc.defaultEndpointConfig.circuitBreaker = NewCircuitBreaker(config)
 	}
 }
 
@@ -237,7 +237,7 @@ func WithCircuitBreaker(config CircuitBreakerConfig) ClientOption {
 //   - Critical operations: Longer delays, more attempts
 func WithRetry(config RetryConfig) ClientOption {
 	return func(nc *NetworkClient) {
-		nc.retryConfig = &config
+		nc.defaultEndpointConfig.retryConfig = &config
 	}
 }
 

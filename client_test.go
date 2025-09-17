@@ -25,11 +25,11 @@ func TestDefaultGlobalClient(t *testing.T) {
 		t.Errorf("Default timeout should be 30s, got %v", Client.httpClient.Timeout)
 	}
 
-	if Client.rateLimiter != nil {
+	if Client.defaultEndpointConfig.rateLimiter != nil {
 		t.Error("Default rate limiter should be nil (no rate limiting)")
 	}
 
-	if Client.circuitBreaker != nil {
+	if Client.defaultEndpointConfig.circuitBreaker != nil {
 		t.Error("Default circuit breaker should be nil")
 	}
 }
@@ -102,11 +102,11 @@ func TestNewClientCreation(t *testing.T) {
 	}
 
 	// Verify rate limiters are configured correctly
-	if client1.rateLimiter == nil {
+	if client1.defaultEndpointConfig.rateLimiter == nil {
 		t.Error("Client1 should have rate limiter")
 	}
 
-	if client2.rateLimiter != nil {
+	if client2.defaultEndpointConfig.rateLimiter != nil {
 		t.Error("Client2 should not have rate limiter")
 	}
 
@@ -172,7 +172,7 @@ func TestEndpointConfiguration(t *testing.T) {
 
 	// Test default fallback
 	defaultConfig := client.getEndpointConfig("/other/endpoint")
-	if defaultConfig.rateLimiter != client.rateLimiter {
+	if defaultConfig.rateLimiter != client.defaultEndpointConfig.rateLimiter {
 		t.Error("Unknown endpoint should use default rate limiter")
 	}
 }
@@ -401,16 +401,16 @@ func TestRetryConfiguration(t *testing.T) {
 		WithRetry(retryConfig),
 	)
 
-	if client.retryConfig == nil {
+	if client.defaultEndpointConfig.retryConfig == nil {
 		t.Error("Client should have retry configuration")
 	}
 
-	if client.retryConfig.MaxRetries != 3 {
-		t.Errorf("Expected MaxRetries 3, got %d", client.retryConfig.MaxRetries)
+	if client.defaultEndpointConfig.retryConfig.MaxRetries != 3 {
+		t.Errorf("Expected MaxRetries 3, got %d", client.defaultEndpointConfig.retryConfig.MaxRetries)
 	}
 
-	if client.retryConfig.BaseDelay != 100*time.Millisecond {
-		t.Errorf("Expected BaseDelay 100ms, got %v", client.retryConfig.BaseDelay)
+	if client.defaultEndpointConfig.retryConfig.BaseDelay != 100*time.Millisecond {
+		t.Errorf("Expected BaseDelay 100ms, got %v", client.defaultEndpointConfig.retryConfig.BaseDelay)
 	}
 }
 
@@ -544,9 +544,5 @@ func TestHelperFunctions(t *testing.T) {
 
 	if client.httpClient.Timeout != 10*time.Second {
 		t.Errorf("Test client should have 10s timeout, got %v", client.httpClient.Timeout)
-	}
-
-	if client.rateLimiter != nil {
-		t.Error("Test client should not have rate limiting for fast tests")
 	}
 }

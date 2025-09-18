@@ -3,7 +3,6 @@ package gorest
 import (
 	"context"
 	"go.uber.org/zap"
-	"golang.org/x/time/rate"
 	"net/http"
 	"path/filepath"
 	"sync"
@@ -75,6 +74,18 @@ type NetworkClient struct {
 	// defaultEndpointConfig provides fallback configuration for endpoints without specific config.
 	// Contains default rate limiter, circuit breaker, retry, and timeout settings.
 	defaultEndpointConfig *EndpointConfig
+	// middlewares contains the middleware chain executed for all requests from this client.
+	// Middlewares execute in the order they were added and provide cross-cutting concerns
+	// like authentication, logging, metrics, and error handling.
+	middlewares []Middleware
+
+	// requestInterceptors are simple functions executed before sending HTTP requests.
+	// Use these for simple request modifications like adding headers or validation.
+	requestInterceptors []RequestInterceptor
+
+	// responseInterceptors are simple functions executed after receiving HTTP responses.
+	// Use these for simple response processing like logging, metrics, or error handling.
+	responseInterceptors []ResponseInterceptor
 
 	// === CONFIGURATION DEFAULTS ===
 	// These are client-level defaults that can be overridden per request
@@ -82,7 +93,6 @@ type NetworkClient struct {
 	// defaultHeaders contains headers automatically added to all requests from this client.
 	// Used for organization-wide standards like User-Agent, Accept headers, etc.
 	defaultHeaders map[string]string
-
 
 	// === REQUEST-SPECIFIC DATA (Smart copy-on-write for thread safety) ===
 	// These fields are managed by the smart copy-on-write pattern
@@ -174,15 +184,15 @@ func newDefaultClient() *NetworkClient {
 		endpointConfigs: make(map[string]*EndpointConfig),
 		defaultEndpointConfig: &EndpointConfig{
 			// No rate limiting by default - maximum throughput
-			rateLimiter:    nil,
+			rateLimiter: nil,
 			// No circuit breaker by default - let all requests through
 			circuitBreaker: nil,
 			// No custom timeout - use client default
-			timeout:        0,
+			timeout: 0,
 			// No retry config - single attempt by default
-			retryConfig:    nil,
+			retryConfig: nil,
 		},
-		defaultHeaders:  make(map[string]string),
+		defaultHeaders: make(map[string]string),
 		// requestID starts empty, indicating this is a fresh client
 	}
 }
@@ -706,13 +716,16 @@ func (nc *NetworkClient) getEndpointConfig(endpoint string) *EndpointConfig {
 func (nc *NetworkClient) copyForRequest() *NetworkClient {
 	return &NetworkClient{
 		// === SHARED INFRASTRUCTURE (same references) ===
-		httpClient:      nc.httpClient,
-		logger:          nc.logger,
-		endpointConfigs: nc.endpointConfigs,
-		defaultHeaders:  nc.defaultHeaders,
+		httpClient:            nc.httpClient,
+		logger:                nc.logger,
+		middlewares:           nc.middlewares,
+		requestInterceptors:   nc.requestInterceptors,
+		responseInterceptors:  nc.responseInterceptors,
+		endpointConfigs:       nc.endpointConfigs,
+		defaultHeaders:        nc.defaultHeaders,
 		defaultEndpointConfig: nc.defaultEndpointConfig,
-		parser:          nc.parser,
-		errorParser:     nc.errorParser,
+		parser:                nc.parser,
+		errorParser:           nc.errorParser,
 
 		// === REQUEST-SPECIFIC DATA (copied) ===
 		headers:     copyStringMap(nc.headers),

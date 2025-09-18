@@ -44,32 +44,74 @@ import (
 //
 //	This method is safe to call concurrently as it operates on request-specific
 //	configuration while coordinating with shared infrastructure safely.
+//
+// executeRequest is the main request execution pipeline that coordinates all
+// advanced networking features including middlewares, interceptors, rate limiting,
+// circuit breaking, retry logic, and request/response processing.
+//
+// Execution pipeline:
+//  1. Create middleware context with request metadata
+//  2. Execute request interceptors (simple pre-request processing)
+//  3. Execute middleware chain (comprehensive request/response handling)
+//  4. Execute response interceptors (simple post-response processing)
+//
+// Parameters:
+//   - method: HTTP method to execute (GET, POST, PUT, etc.)
+//   - endpoint: URL path to append to configured host
+//
+// Returns:
+//   - *errors.ErrorDetails: Error information if request failed, nil on success
+//
+// Thread safety:
+//
+//	This method is safe to call concurrently as it operates on request-specific
+//	configuration while coordinating with shared infrastructure safely.
 func (nc *NetworkClient) executeRequest(method enums.HttpMethods, endpoint string) *errors.ErrorDetails {
-	// Resolve configuration for this specific endpoint
-	config := nc.getEndpointConfig(endpoint)
-
-	// Apply rate limiting if configured
-	if err := nc.applyRateLimit(config, endpoint); err != nil {
+	// Build the HTTP request
+	req, err := nc.buildHTTPRequest(method, endpoint)
+	if err != nil {
 		return err
 	}
 
-	// Check circuit breaker status
-	if err := nc.checkCircuitBreaker(config, endpoint); err != nil {
-		return err
+	// Create middleware context for the request pipeline
+	ctx := &MiddlewareContext{
+		Request:   req,
+		Response:  nil,
+		Error:     nil,
+		StartTime: time.Now(),
+		Metadata:  make(map[string]interface{}),
+		Endpoint:  endpoint,
+		Method:    method.String(),
+		Client:    nc,
 	}
 
-	// Execute request with retry logic
-	result := nc.executeWithRetries(method, endpoint, config)
+	// Execute request interceptors (simple pre-request processing)
+	for _, interceptor := range nc.requestInterceptors {
+		if !interceptor(ctx) {
+			// Request interceptor aborted the request
+			return &errors.ErrorDetails{
+				Message:      "Request aborted by request interceptor",
+				ResponseCode: 0,
+			}
+		}
+	}
 
-	// Record result for circuit breaker tracking
-	nc.recordCircuitBreakerResult(config, result)
+	// Execute middleware chain (comprehensive processing)
+	_ = nc.executeMiddlewareChain(ctx)
 
-	return result
+	// Execute response interceptors (simple post-response processing)
+	for _, interceptor := range nc.responseInterceptors {
+		if !interceptor(ctx) {
+			// Response interceptor modified the response context
+			break
+		}
+	}
+
+	// Return error from context (set by middleware chain or interceptors)
+	return ctx.Error
 }
 
-// applyRateLimit enforces rate limiting constraints before allowing request execution.
-// Uses token bucket algorithm to provide smooth rate limiting with burst capacity.
-//
+// Execute middleware chain (comprehensive processing)
 // Rate limiting benefits:
 //   - Prevents overwhelming downstream services
 //   - Helps stay within API rate limits and quotas

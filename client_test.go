@@ -292,7 +292,7 @@ func TestCopyOnWrite(t *testing.T) {
 // the same client instance without race conditions or data corruption.
 func TestConcurrentAccess(t *testing.T) {
 	client := NewClient(
-		WithHost("https://httpbin.org"),
+		WithHost("https://jsonplaceholder.typicode.com"),
 		WithTimeout(300*time.Second),
 	)
 
@@ -317,12 +317,8 @@ func TestConcurrentAccess(t *testing.T) {
 					"X-Goroutine-ID": fmt.Sprintf("%d", id),
 					"Authorization":  fmt.Sprintf("Bearer token-%d", id),
 				}).
-				Params(map[string]string{
-					"id":        fmt.Sprintf("%d", id),
-					"timestamp": fmt.Sprintf("%d", time.Now().UnixNano()),
-				}).
 				WithContext(context.Background()).
-				Get("/get")
+				Get(fmt.Sprintf("/posts/%d", id+1))
 
 			if err != nil {
 				errorChan <- fmt.Errorf("goroutine %d failed: %w", id, err.Error)

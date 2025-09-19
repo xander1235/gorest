@@ -26,7 +26,7 @@ func main() {
 	// Example 1: Simple GET request using the global client
 	fmt.Println("=== Example 1: Global Client GET ===")
 	var user User
-	err := gorest.NetworkClient.
+	err := gorest.Client.
 		Host("https://jsonplaceholder.typicode.com").
 		Response(&user).
 		Get("/users/1")
@@ -45,7 +45,7 @@ func main() {
 	}
 
 	var createdUser User
-	err = gorest.NetworkClient.
+	err = gorest.Client.
 		Host("https://jsonplaceholder.typicode.com").
 		Headers(map[string]string{
 			"Content-Type": "application/json",

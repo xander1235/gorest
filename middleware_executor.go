@@ -248,11 +248,13 @@ func (nc *NetworkClient) buildMultipartRequest(method enums.HttpMethods, endpoin
 		}
 	}
 
-	// Override request type with actual multipart content type (includes boundary)
-	nc.requestType = contentType
-
-	// Add headers and finalize request
+	// Add headers and finalize request (this sets Content-Type from nc.requestType)
 	req = nc.finalizeHTTPRequest(req)
+	
+	// Override Content-Type header with actual multipart content type (includes boundary)
+	// Do this AFTER finalization to ensure the correct multipart content type is used
+	req.Header.Set("Content-Type", contentType)
+	
 	return req, nil
 }
 

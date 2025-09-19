@@ -1,6 +1,7 @@
 package gorest
 
 import (
+	"math"
 	"fmt"
 	"net/http"
 	"strings"
@@ -474,7 +475,7 @@ func (retry *RetryMiddleware) calculateDelay(attempt int) time.Duration {
 	}
 
 	// Exponential backoff: base * (2 ^ attempt)
-	delay := time.Duration(float64(baseDelay) * (1 << uint(attempt)))
+	delay := time.Duration(float64(baseDelay) * math.Pow(2, float64(attempt)))
 
 	// Cap at maximum delay if specified
 	if retry.MaxDelay > 0 && delay > retry.MaxDelay {

@@ -1,5 +1,7 @@
 package gorest
 
+import "go.uber.org/zap"
+
 // === MIDDLEWARE AND INTERCEPTOR CONFIGURATION OPTIONS ===
 
 // WithMiddleware adds a middleware to the client's middleware chain.
@@ -22,7 +24,7 @@ package gorest
 //	    WithMiddleware(func(ctx *MiddlewareContext, next NextFunc) {
 //	        // Pre-request processing
 //	        ctx.Request.Header.Set("X-Request-ID", generateID())
-//	        
+//
 //	        // Execute request
 //	        if next() {
 //	            // Post-response processing
@@ -35,7 +37,7 @@ package gorest
 //  1. Middleware 1 pre-request → Middleware 2 pre-request → HTTP Request
 //  2. HTTP Response → Middleware 2 post-response → Middleware 1 post-response
 func WithMiddleware(middleware Middleware) ClientOption {
-	return func(nc *networkClient) {
+	return func(nc *NetworkClient) {
 		nc.middlewares = append(nc.middlewares, middleware)
 	}
 }
@@ -56,7 +58,7 @@ func WithMiddleware(middleware Middleware) ClientOption {
 //	    ),
 //	)
 func WithMiddlewares(middlewares ...Middleware) ClientOption {
-	return func(nc *networkClient) {
+	return func(nc *NetworkClient) {
 		nc.middlewares = append(nc.middlewares, middlewares...)
 	}
 }
@@ -81,7 +83,7 @@ func WithMiddlewares(middlewares ...Middleware) ClientOption {
 //	    }),
 //	)
 func WithRequestInterceptor(interceptor RequestInterceptor) ClientOption {
-	return func(nc *networkClient) {
+	return func(nc *NetworkClient) {
 		nc.requestInterceptors = append(nc.requestInterceptors, interceptor)
 	}
 }
@@ -102,7 +104,7 @@ func WithRequestInterceptor(interceptor RequestInterceptor) ClientOption {
 //	    ),
 //	)
 func WithRequestInterceptors(interceptors ...RequestInterceptor) ClientOption {
-	return func(nc *networkClient) {
+	return func(nc *NetworkClient) {
 		nc.requestInterceptors = append(nc.requestInterceptors, interceptors...)
 	}
 }
@@ -122,7 +124,7 @@ func WithRequestInterceptors(interceptors ...RequestInterceptor) ClientOption {
 //	    WithResponseInterceptor(func(ctx *MiddlewareContext) {
 //	        // Log response metrics
 //	        log.Printf("Response: %d in %v", ctx.Response.StatusCode, ctx.Duration)
-//	        
+//
 //	        // Transform errors
 //	        if ctx.Error != nil && ctx.Error.ResponseCode == 503 {
 //	            ctx.Error.Message = "Service temporarily unavailable"
@@ -130,7 +132,7 @@ func WithRequestInterceptors(interceptors ...RequestInterceptor) ClientOption {
 //	    }),
 //	)
 func WithResponseInterceptor(interceptor ResponseInterceptor) ClientOption {
-	return func(nc *networkClient) {
+	return func(nc *NetworkClient) {
 		nc.responseInterceptors = append(nc.responseInterceptors, interceptor)
 	}
 }
@@ -151,7 +153,7 @@ func WithResponseInterceptor(interceptor ResponseInterceptor) ClientOption {
 //	    ),
 //	)
 func WithResponseInterceptors(interceptors ...ResponseInterceptor) ClientOption {
-	return func(nc *networkClient) {
+	return func(nc *NetworkClient) {
 		nc.responseInterceptors = append(nc.responseInterceptors, interceptors...)
 	}
 }
@@ -313,7 +315,7 @@ func WithCustomRetryMiddleware(retry *RetryMiddleware) ClientOption {
 //	    WithMiddlewareChain(standardChain),
 //	)
 func WithMiddlewareChain(middlewares []Middleware) ClientOption {
-	return func(nc *networkClient) {
+	return func(nc *NetworkClient) {
 		nc.middlewares = append(nc.middlewares, middlewares...)
 	}
 }
@@ -330,7 +332,7 @@ func WithMiddlewareChain(middlewares []Middleware) ClientOption {
 //	    WithMetricsMiddleware(collector), // Add only metrics
 //	)
 func ClearMiddlewares() ClientOption {
-	return func(nc *networkClient) {
+	return func(nc *NetworkClient) {
 		nc.middlewares = nil
 		nc.requestInterceptors = nil
 		nc.responseInterceptors = nil

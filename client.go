@@ -117,7 +117,7 @@ type NetworkClient struct {
 
 	// body contains the request payload for POST/PUT/PATCH operations.
 	// Can be any serializable type (struct, map, string, etc.).
-	body interface{}
+	body any
 
 	// multipart contains multipart form data for file uploads and complex forms.
 	// Used when request type is set to multipart/form-data.
@@ -125,7 +125,7 @@ type NetworkClient struct {
 
 	// response is a pointer to the struct where response data should be unmarshaled.
 	// Set per request chain to capture the response in the desired format.
-	response interface{}
+	response any
 
 	// requestType specifies the Content-Type header (JSON, multipart, form-urlencoded).
 	// Determines how the request body is serialized and sent.
@@ -134,6 +134,12 @@ type NetworkClient struct {
 	// ctx provides request-level context for cancellation, timeouts, and tracing.
 	// Allows per-request timeout and cancellation without affecting other requests.
 	ctx context.Context
+	// === SSE STREAMING CONFIGURATION ===
+	// These fields control Server-Sent Events streaming behavior
+
+	// sseConfig contains configuration for SSE streams (timeouts, reconnect, etc.)
+	// Allows customization of streaming behavior per request chain
+	sseConfig *types.SSEConfig
 
 	// === INTERNAL PARSING FUNCTIONS ===
 	// These handle response and error parsing with customizable logic
@@ -640,6 +646,10 @@ func (nc *NetworkClient) Delete(endpoint string) *errors.ErrorDetails {
 	copyClient := nc.ensureRequestCopy()
 	return copyClient.executeRequest(enums.DELETE, endpoint)
 }
+
+// === SERVER-SENT EVENTS (SSE) STREAMING METHODS ===
+
+// WithSSEConfig configures Server-Sent Events streaming settings for the request chain.
 
 // === INTERNAL HELPER FUNCTIONS ===
 

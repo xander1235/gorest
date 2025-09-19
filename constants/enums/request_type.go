@@ -10,11 +10,12 @@ const (
 	Json
 	Multipart
 	FormUrlEncoded
+	ServerSentEvents
 )
 
 // Values returns the values of the RequestType.
 func (s RequestType) Values() []string {
-	return []string{"application/json", "multipart/form-data", "application/x-www-form-urlencoded"}
+	return []string{"application/json", "multipart/form-data", "application/x-www-form-urlencoded", "text/event-stream"}
 }
 
 // ToString returns the string representation of the RequestType.

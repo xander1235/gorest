@@ -31,10 +31,10 @@ import (
 //
 // Returns:
 //   - bool: true if request succeeded, false if it failed or was aborted
-func (nc *NetworkClient) executeMiddlewareChain(ctx *MiddlewareContext) bool {
+func (nc *NetworkClient) executeMiddlewareChain(ctx *MiddlewareContext, isStreaming bool) bool {
 	if len(nc.middlewares) == 0 {
 		// No middlewares configured - use original pipeline
-		return nc.executeOriginalPipeline(ctx)
+		return nc.executePipeline(ctx, false, isStreaming)
 	}
 
 	// Execute middleware chain
@@ -43,7 +43,7 @@ func (nc *NetworkClient) executeMiddlewareChain(ctx *MiddlewareContext) bool {
 	next = func() bool {
 		if index >= len(nc.middlewares) {
 			// End of middleware chain - execute the actual HTTP request
-			return nc.executeHTTPRequestWithMiddleware(ctx)
+			return nc.executePipeline(ctx, true, isStreaming)
 		}
 
 		// Get current middleware and increment index
@@ -61,69 +61,106 @@ func (nc *NetworkClient) executeMiddlewareChain(ctx *MiddlewareContext) bool {
 	return next()
 }
 
-// executeOriginalPipeline executes the original request pipeline without middlewares.
-// This maintains backward compatibility and provides the same functionality as before
-// middlewares were added, including rate limiting, circuit breaking, and retry logic.
-func (nc *NetworkClient) executeOriginalPipeline(ctx *MiddlewareContext) bool {
+// executePipeline handles both original and middleware execution paths
+// with consistent rate limiting, circuit breaking, and retry logic.
+//
+// Parameters:
+//   - ctx: MiddlewareContext containing request/response data
+//   - useMiddleware: if true, uses ctx.Request; if false, builds request on demand
+//
+// Returns:
+//   - bool: true if request succeeded, false if it failed or was aborted
+func (nc *NetworkClient) executePipeline(ctx *MiddlewareContext, useMiddleware bool, isStreaming bool) bool {
 	// Resolve configuration for this specific endpoint
 	config := nc.getEndpointConfig(ctx.Endpoint)
 
-	// Apply rate limiting if configured
+	// Apply rate limiting if configured - once per logical request
 	if err := nc.applyRateLimit(config, ctx.Endpoint); err != nil {
 		ctx.Error = err
 		return false
 	}
 
-	// Check circuit breaker status
+	// Check circuit breaker status - once per logical request
 	if err := nc.checkCircuitBreaker(config, ctx.Endpoint); err != nil {
 		ctx.Error = err
 		return false
 	}
 
-	// Execute request with retry logic
-	method := enums.HttpMethods(ctx.Method)
-	result := nc.executeWithRetries(method, ctx.Endpoint, config)
+	result := nc.executeWithRetries(ctx, config, useMiddleware, isStreaming)
 
-	// Record result for circuit breaker tracking
+	// Record result for circuit breaker tracking - once per logical request
 	nc.recordCircuitBreakerResult(config, result)
 
-	// Set error in context
+	// Set error in context and return status
 	ctx.Error = result
 	return result == nil
 }
 
+// executeSingleAttempt is a helper method that performs a single HTTP request attempt
+// for the original (non-middleware) execution path.
+// It would replace the single-attempt logic previously in executeWithRetries.
+func (nc *NetworkClient) executeSingleAttempt(ctx *MiddlewareContext, isStreaming bool) *errors.ErrorDetails {
+	// Build request for original pipeline
+	req, buildErr := nc.buildHTTPRequest(enums.HttpMethods(ctx.Method), ctx.Endpoint)
+	if buildErr != nil {
+		return buildErr
+	}
+
+	// Execute request
+	start := time.Now()
+	resp, err := nc.httpClient.Do(req)
+	duration := time.Since(start)
+
+	ctx.Response = resp
+
+	if err != nil {
+		return &errors.ErrorDetails{
+			Message:      fmt.Sprintf("HTTP request failed: %s", err.Error()),
+			ResponseCode: 0,
+		}
+	}
+
+	if !isStreaming {
+		defer resp.Body.Close()
+	}
+
+	// Process response using shared logic
+	return nc.processHTTPResponseWithMiddleware(ctx, resp, duration, isStreaming)
+}
+
 // executeHTTPRequestWithMiddleware executes the actual HTTP request within the middleware context.
 // This is called at the end of the middleware chain to perform the actual network request.
-func (nc *NetworkClient) executeHTTPRequestWithMiddleware(ctx *MiddlewareContext) bool {
-	// Record start time for duration calculation
-	start := time.Now()
+func (nc *NetworkClient) executeHTTPRequestWithMiddleware(ctx *MiddlewareContext, isStreaming bool) bool {
+	// Single-attempt execution using helper
+	if err := nc.attemptHTTPRequestWithMiddleware(ctx, isStreaming); err != nil {
+		ctx.Error = err
+		return false
+	}
+	return true
+}
 
-	// Execute HTTP request
+// attemptHTTPRequestWithMiddleware performs a single HTTP attempt using ctx.Request
+// and returns an error if the attempt fails or the response indicates an error.
+func (nc *NetworkClient) attemptHTTPRequestWithMiddleware(ctx *MiddlewareContext, isStreaming bool) *errors.ErrorDetails {
+	start := time.Now()
 	resp, err := nc.httpClient.Do(ctx.Request)
 	duration := time.Since(start)
 	ctx.Duration = duration
 
 	if err != nil {
-		// Network error or timeout
-		ctx.Error = &errors.ErrorDetails{
+		return &errors.ErrorDetails{
 			Message:      fmt.Sprintf("HTTP request failed: %s", err.Error()),
 			ResponseCode: 0,
 		}
-		nc.logRequestError(ctx.Request, err, duration)
-		return false
 	}
 
-	// Set response in context
+	// Set response in context for processing
 	ctx.Response = resp
 
-	// Process HTTP response
-	processErr := nc.processHTTPResponseWithMiddleware(ctx, resp, duration)
-	if processErr != nil {
-		ctx.Error = processErr
-		return false
+	if processErr := nc.processHTTPResponseWithMiddleware(ctx, resp, duration, isStreaming); processErr != nil {
+		return processErr
 	}
-
-	return true
+	return nil
 }
 
 // === HTTP REQUEST BUILDING ===
@@ -139,6 +176,8 @@ func (nc *NetworkClient) buildHTTPRequest(method enums.HttpMethods, endpoint str
 		return nc.buildMultipartRequest(method, endpoint)
 	case enums.FormUrlEncoded.ToString():
 		return nc.buildFormRequest(method, endpoint)
+	case "text/event-stream":
+		return nc.buildSSERequest(method, endpoint)
 	default:
 		return nil, &errors.ErrorDetails{
 			Message:      fmt.Sprintf("Unsupported request type: %s", nc.requestType),
@@ -175,7 +214,7 @@ func (nc *NetworkClient) buildJSONRequest(method enums.HttpMethods, endpoint str
 	}
 
 	// Add headers and finalize request
-	nc.finalizeHTTPRequest(req)
+	req = nc.finalizeHTTPRequest(req)
 	return req, nil
 }
 
@@ -213,7 +252,7 @@ func (nc *NetworkClient) buildMultipartRequest(method enums.HttpMethods, endpoin
 	nc.requestType = contentType
 
 	// Add headers and finalize request
-	nc.finalizeHTTPRequest(req)
+	req = nc.finalizeHTTPRequest(req)
 	return req, nil
 }
 
@@ -252,12 +291,60 @@ func (nc *NetworkClient) buildFormRequest(method enums.HttpMethods, endpoint str
 	}
 
 	// Add headers and finalize request
-	nc.finalizeHTTPRequest(req)
+	req = nc.finalizeHTTPRequest(req)
+	return req, nil
+}
+
+// buildSSERequest builds an HTTP request for Server-Sent Events streaming.
+func (nc *NetworkClient) buildSSERequest(method enums.HttpMethods, endpoint string) (*http.Request, *errors.ErrorDetails) {
+	var bodyBuffer *bytes.Buffer
+
+	if nc.body != nil {
+		// Serialize body as JSON for SSE POST requests
+		jsonBody, err := json.Marshal(nc.body)
+		if err != nil {
+			return nil, &errors.ErrorDetails{
+				Message:      fmt.Sprintf("Failed to serialize SSE request body: %s", err.Error()),
+				ResponseCode: 500,
+			}
+		}
+		bodyBuffer = bytes.NewBuffer(jsonBody)
+	} else {
+		bodyBuffer = bytes.NewBuffer(nil)
+	}
+
+	// Create HTTP request
+	req, err := http.NewRequest(method.String(), nc.host+endpoint, bodyBuffer)
+	if err != nil {
+		return nil, &errors.ErrorDetails{
+			Message:      fmt.Sprintf("Failed to create SSE HTTP request: %s", err.Error()),
+			ResponseCode: 500,
+		}
+	}
+
+	// Add headers and finalize request
+	req = nc.finalizeHTTPRequest(req)
+	// Set SSE-specific headers
+	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("Cache-Control", "no-cache")
+	// If using HTTP/1.1, ensure keep-alive
+	if req.ProtoMajor == 1 && req.ProtoMinor == 1 {
+		req.Header.Set("Connection", "keep-alive")
+	}
+
+	// Override Content-Type for SSE requests AFTER finalization to avoid being overwritten
+	if nc.body != nil {
+		// For POST streaming with body, use JSON content type
+		req.Header.Set("Content-Type", "application/json")
+	} else {
+		// For GET streaming, remove content type
+		req.Header.Del("Content-Type")
+	}
 	return req, nil
 }
 
 // finalizeHTTPRequest adds headers, query parameters, and context to the HTTP request.
-func (nc *NetworkClient) finalizeHTTPRequest(req *http.Request) {
+func (nc *NetworkClient) finalizeHTTPRequest(req *http.Request) *http.Request {
 	// Set Content-Type header
 	req.Header.Set(constants.ContentType, nc.requestType)
 
@@ -287,18 +374,23 @@ func (nc *NetworkClient) finalizeHTTPRequest(req *http.Request) {
 	if nc.ctx != nil {
 		req = req.WithContext(nc.ctx)
 	}
+	return req
 }
 
 // === RESPONSE PROCESSING ===
 
 // processHTTPResponseWithMiddleware handles HTTP response processing within the middleware context.
-func (nc *NetworkClient) processHTTPResponseWithMiddleware(ctx *MiddlewareContext, resp *http.Response, duration time.Duration) *errors.ErrorDetails {
+func (nc *NetworkClient) processHTTPResponseWithMiddleware(ctx *MiddlewareContext, resp *http.Response, duration time.Duration, isStreaming bool) *errors.ErrorDetails {
+	if isStreaming {
+		return nil
+	}
+
 	defer resp.Body.Close()
 
 	// Read response body
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		nc.logRequestError(ctx.Request, err, duration)
+		// TODO: Add proper request error logging
 		return &errors.ErrorDetails{
 			Message:      fmt.Sprintf("Failed to read response body: %s", err.Error()),
 			ResponseCode: resp.StatusCode,
@@ -308,7 +400,7 @@ func (nc *NetworkClient) processHTTPResponseWithMiddleware(ctx *MiddlewareContex
 	bodyString := string(bodyBytes)
 
 	// Log response details
-	nc.logResponse(ctx.Request, resp, duration, len(bodyBytes))
+	// TODO: Add proper response logging
 
 	// Process response based on status code
 	switch enums.HttpStatus(resp.StatusCode).SeriesType() {

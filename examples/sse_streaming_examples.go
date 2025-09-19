@@ -12,7 +12,7 @@ import (
 
 func main() {
 	// Create a new client instance
-	client := gorest.NewClient(nil)
+	client := gorest.NewClient()
 
 	// Example 1: Basic SSE Streaming
 	fmt.Println("=== Basic SSE Streaming ===")

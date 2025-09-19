@@ -1,14 +1,12 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
-	"go.uber.org/zap"
 	gorest "github.com/xander1235/gorest"
+	"go.uber.org/zap"
 )
 
 // This example demonstrates the comprehensive middleware and interceptor system
@@ -20,7 +18,7 @@ func main() {
 	fmt.Println("Demonstrating authentication, logging, metrics, and custom processing\n")
 
 	// Setup logger for demonstration
-	logger := setupLogger()
+	logger := setupLoggerDemo()
 
 	// Demonstrate different middleware approaches
 	demonstrateBasicMiddlewares(logger)
@@ -204,25 +202,28 @@ func demonstrateInterceptors() {
 		// Response interceptors (simple post-response processing)
 		gorest.WithResponseInterceptors(
 			// Log response summary
-			func(ctx *gorest.MiddlewareContext) {
+			func(ctx *gorest.MiddlewareContext) bool {
 				if ctx.Response != nil {
 					fmt.Printf("📨 Response received: %d %s\n",
 						ctx.Response.StatusCode, ctx.Response.Status)
 				}
+				return true
 			},
 
 			// Collect response metrics
-			func(ctx *gorest.MiddlewareContext) {
+			func(ctx *gorest.MiddlewareContext) bool {
 				fmt.Printf("📈 Response processed in %v\n", ctx.Duration)
+				return true
 			},
 
 			// Error transformation
-			func(ctx *gorest.MiddlewareContext) {
+			func(ctx *gorest.MiddlewareContext) bool {
 				if ctx.Error != nil && ctx.Error.ResponseCode == 404 {
 					// Transform 404 errors to be more user-friendly
 					ctx.Error.Message = "The requested resource was not found"
 					fmt.Println("🔄 Error message transformed for user friendliness")
 				}
+				return true
 			},
 		),
 	)
@@ -337,7 +338,7 @@ type CacheEntry struct {
 	Response  string
 }
 
-func setupLogger() *zap.Logger {
+func setupLoggerDemo() *zap.Logger {
 	config := zap.NewDevelopmentConfig()
 	config.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
 	logger, err := config.Build()

@@ -2,12 +2,11 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
-	"golang.org/x/time/rate"
 	gorest "github.com/xander1235/gorest"
+	"golang.org/x/time/rate"
 )
 
 // This example demonstrates the new endpoint-level rate limiting and circuit breaking
@@ -20,14 +19,14 @@ func main() {
 	// Create a client with endpoint-specific configurations
 	client := gorest.NewClient(
 		gorest.WithHost("https://httpbin.org"),
-		
+
 		// Default configuration for all endpoints (fallback)
 		gorest.WithRateLimit(rate.Limit(10), 5), // 10 req/sec default
 		gorest.WithCircuitBreaker(gorest.CircuitBreakerConfig{
 			MaxFailures:  5,
 			ResetTimeout: 30 * time.Second,
 		}),
-		
+
 		// Auth endpoints: Very strict rate limiting (security-critical)
 		gorest.WithEndpointConfig("/anything/auth/*", gorest.EndpointOptions{
 			RateLimit: rate.NewLimiter(rate.Limit(2), 1), // Only 2 req/sec
@@ -36,7 +35,7 @@ func main() {
 				ResetTimeout: 60 * time.Second,
 			},
 		}),
-		
+
 		// Data endpoints: High throughput allowed (read-heavy operations)
 		gorest.WithEndpointConfig("/anything/data/*", gorest.EndpointOptions{
 			RateLimit: rate.NewLimiter(rate.Limit(50), 20), // High volume
@@ -45,7 +44,7 @@ func main() {
 				ResetTimeout: 15 * time.Second,
 			},
 		}),
-		
+
 		// Admin endpoints: Moderate but controlled (administrative operations)
 		gorest.WithEndpointConfig("/anything/admin/*", gorest.EndpointOptions{
 			RateLimit: rate.NewLimiter(rate.Limit(5), 2), // Moderate
@@ -78,14 +77,14 @@ func main() {
 
 func demonstrateConcurrentEndpoints(client *gorest.NetworkClient) {
 	fmt.Println("=== Testing Concurrent Endpoint Access ===")
-	
+
 	var wg sync.WaitGroup
 	results := make(map[string][]time.Duration)
 	resultsMutex := sync.Mutex{}
-	
-	endpoints := []struct{
-		name string
-		path string
+
+	endpoints := []struct {
+		name          string
+		path          string
 		expectedLimit string
 	}{
 		{"Auth", "/anything/auth/login", "2 req/sec"},
@@ -93,51 +92,55 @@ func demonstrateConcurrentEndpoints(client *gorest.NetworkClient) {
 		{"Admin", "/anything/admin/settings", "5 req/sec"},
 		{"Default", "/anything/other/endpoint", "10 req/sec"},
 	}
-	
+
 	for _, endpoint := range endpoints {
 		wg.Add(1)
-		go func(ep struct{name string; path string; expectedLimit string}) {
+		go func(ep struct {
+			name          string
+			path          string
+			expectedLimit string
+		}) {
 			defer wg.Done()
-			
-			fmt.Printf("Testing %s endpoint (%s) - Expected: %s\n", 
+
+			fmt.Printf("Testing %s endpoint (%s) - Expected: %s\n",
 				ep.name, ep.path, ep.expectedLimit)
-			
+
 			durations := make([]time.Duration, 0, 3)
-			
+
 			// Make 3 requests to each endpoint to observe rate limiting
 			for i := 0; i < 3; i++ {
 				start := time.Now()
-				
+
 				// This request will be rate limited based on endpoint-specific config
 				err := client.
 					Headers(map[string]string{"X-Test-Endpoint": ep.name}).
 					Post(ep.path)
-				
+
 				duration := time.Since(start)
 				durations = append(durations, duration)
-				
+
 				if err != nil {
 					// Rate limiting or circuit breaker may cause errors
-					fmt.Printf("  Request %d to %s: %v (took %v)\n", 
+					fmt.Printf("  Request %d to %s: %v (took %v)\n",
 						i+1, ep.name, err, duration)
 				} else {
-					fmt.Printf("  Request %d to %s: Success (took %v)\n", 
+					fmt.Printf("  Request %d to %s: Success (took %v)\n",
 						i+1, ep.name, duration)
 				}
-				
+
 				// Small delay between requests to observe rate limiting effects
 				time.Sleep(100 * time.Millisecond)
 			}
-			
+
 			resultsMutex.Lock()
 			results[ep.name] = durations
 			resultsMutex.Unlock()
-			
+
 		}(endpoint)
 	}
-	
+
 	wg.Wait()
-	
+
 	fmt.Println("\n📊 Results Summary:")
 	for name, durations := range results {
 		total := time.Duration(0)
@@ -153,18 +156,18 @@ func demonstrateConcurrentEndpoints(client *gorest.NetworkClient) {
 func demonstratCircuitBreakerIsolation(client *gorest.NetworkClient) {
 	fmt.Println("=== Circuit Breaker Isolation Demo ===")
 	fmt.Println("Simulating failures on auth endpoint - other endpoints should be unaffected\n")
-	
+
 	// This demonstrates that circuit breaker failures are isolated per endpoint
 	// We'll simulate failures to auth endpoints and verify other endpoints still work
-	
+
 	fmt.Println("Making requests to different endpoints:")
-	
+
 	// Try auth endpoint (this might trigger circuit breaker due to 401/403 responses)
 	err := client.Post("/status/401") // This will fail with 401
 	if err != nil {
 		fmt.Printf("Auth endpoint failed (expected): %v\n", err)
 	}
-	
+
 	// Try data endpoint - should still work despite auth failures
 	err = client.Get("/anything/data/users")
 	if err != nil {
@@ -172,7 +175,7 @@ func demonstratCircuitBreakerIsolation(client *gorest.NetworkClient) {
 	} else {
 		fmt.Println("✅ Data endpoint succeeded - not affected by auth failures")
 	}
-	
+
 	// Try admin endpoint - should also still work
 	err = client.Get("/anything/admin/settings")
 	if err != nil {
@@ -180,7 +183,7 @@ func demonstratCircuitBreakerIsolation(client *gorest.NetworkClient) {
 	} else {
 		fmt.Println("✅ Admin endpoint succeeded - not affected by auth failures")
 	}
-	
+
 	// Try default endpoint - should still work
 	err = client.Get("/anything/other/service")
 	if err != nil {
@@ -188,7 +191,7 @@ func demonstratCircuitBreakerIsolation(client *gorest.NetworkClient) {
 	} else {
 		fmt.Println("✅ Default endpoint succeeded - not affected by auth failures")
 	}
-	
+
 	fmt.Println("\n🎯 Circuit Breaker Isolation Verified:")
 	fmt.Println("   Auth endpoint failures don't cascade to other endpoints")
 	fmt.Println("   Each endpoint maintains its own circuit breaker state")

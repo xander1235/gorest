@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -36,6 +37,10 @@ type SSEStream struct {
 	Cancel context.CancelFunc
 	// Response associated with the stream
 	Response *http.Response
+	// Mutex to protect close operations
+	closeMu sync.Mutex
+	// Flag to track if stream has been closed
+	closed bool
 }
 
 // SSEConfig contains configuration for SSE streams
@@ -71,17 +76,24 @@ func DefaultSSEConfig() *SSEConfig {
 
 // Close gracefully closes the SSE stream
 func (s *SSEStream) Close() error {
+	s.closeMu.Lock()
+	defer s.closeMu.Unlock()
+
+	// Return early if already closed
+	if s.closed {
+		return nil
+	}
+
+	// Mark as closed
+	s.closed = true
+
+	// Cancel the context
 	if s.Cancel != nil {
 		s.Cancel()
 	}
 
-	// Close channels
-	select {
-	case <-s.Done:
-		// Already closed
-	default:
-		close(s.Done)
-	}
+	// Close the Done channel
+	close(s.Done)
 
 	// Close response body if available
 	if s.Response != nil && s.Response.Body != nil {

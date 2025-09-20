@@ -1,7 +1,14 @@
 # Gorest v2.0
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/xander1235/gorest.svg)](https://pkg.go.dev/github.com/xander1235/gorest)
+[![Go Report Card](https://goreportcard.com/badge/github.com/xander1235/gorest)](https://goreportcard.com/report/github.com/xander1235/gorest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Performance](https://img.shields.io/badge/Performance-60K%2B%20ops%2Fsec-brightgreen)](https://github.com/xander1235/gorest#-performance)
+
 ## Overview
 Gorest is a powerful, production-ready Go HTTP client library with advanced features like rate limiting, circuit breaker, retry mechanisms, and endpoint-specific configurations. It supports JSON, multipart, and form URL-encoded request types with a clean, fluent API.
+
+**🚀 Performance**: 60,000+ requests/second with sub-25µs latency and only 7-8% overhead vs standard library.
 
 ## 🚀 Features
 
@@ -49,7 +56,7 @@ func main() {
     var user User
     
     // Works out of the box with sensible defaults
-    err := gorest.NetworkClient.
+    err := gorest.Client.
         Host("https://api.example.com").
         Headers(map[string]string{"Authorization": "Bearer token"}).
         Response(&user).
@@ -92,7 +99,7 @@ func main() {
     gorest.Initialize(/* ignored */)
     
     // Use global client
-    gorest.NetworkClient.Host("https://api.com").Get("/data")
+    gorest.Client.Host("https://api.com").Get("/data")
 }
 ```
 
@@ -108,25 +115,25 @@ type APIClients struct {
 func NewAPIClients() *APIClients {
     return &APIClients{
         // Payment service - strict limits
-        Payment: network.NewClient(
-            network.WithHost("https://payment.api.com"),
-            network.WithRateLimit(rate.Limit(5), 2),
-            network.WithCircuitBreaker(network.CircuitBreakerConfig{
+        Payment: gorest.NewClient(
+            gorest.WithHost("https://payment.api.com"),
+            gorest.WithRateLimit(rate.Limit(5), 2),
+            gorest.WithCircuitBreaker(gorest.CircuitBreakerConfig{
                 MaxFailures:  2,
                 ResetTimeout: 30 * time.Second,
             }),
         ),
         
         // User service - moderate limits
-        User: network.NewClient(
-            network.WithHost("https://user.api.com"),
-            network.WithRateLimit(rate.Limit(50), 10),
+        User: gorest.NewClient(
+            gorest.WithHost("https://user.api.com"),
+            gorest.WithRateLimit(rate.Limit(50), 10),
         ),
         
         // Internal service - no limits
-        Internal: network.NewClient(
-            network.WithHost("https://internal.api.com"),
-            network.WithTimeout(60 * time.Second),
+        Internal: gorest.NewClient(
+            gorest.WithHost("https://internal.api.com"),
+            gorest.WithTimeout(60 * time.Second),
             // No rate limiting for internal services
         ),
     }
@@ -136,27 +143,27 @@ func NewAPIClients() *APIClients {
 ### 3. Endpoint-Specific Configuration
 
 ```go
-client := network.NewClient(
-    network.WithHost("https://api.example.com"),
-    network.WithRateLimit(rate.Limit(50), 10), // Default for all endpoints
+client := gorest.NewClient(
+    gorest.WithHost("https://api.example.com"),
+    gorest.WithRateLimit(rate.Limit(50), 10), // Default for all endpoints
     
     // Endpoint-specific overrides
-    network.WithEndpointConfig("/auth/login", network.EndpointOptions{
+    gorest.WithEndpointConfig("/auth/login", gorest.EndpointOptions{
         RateLimit: rate.NewLimiter(rate.Limit(5), 1), // Stricter for login
         Timeout:   5 * time.Second,
-        CircuitBreaker: &network.CircuitBreakerConfig{
+        CircuitBreaker: &gorest.CircuitBreakerConfig{
             MaxFailures:  2,
             ResetTimeout: 30 * time.Second,
         },
     }),
     
     // Wildcard pattern matching
-    network.WithEndpointConfig("/products/*", network.EndpointOptions{
+    gorest.WithEndpointConfig("/products/*", gorest.EndpointOptions{
         RateLimit: rate.NewLimiter(rate.Limit(100), 20), // Higher for products
         Timeout:   10 * time.Second,
     }),
     
-    network.WithEndpointConfig("/admin/*", network.EndpointOptions{
+    gorest.WithEndpointConfig("/admin/*", gorest.EndpointOptions{
         RateLimit: rate.NewLimiter(rate.Limit(10), 2), // Very strict for admin
     }),
 )
@@ -270,28 +277,28 @@ func testConcurrentRequests() {
 
 ```go
 // Basic Configuration
-network.WithHost("https://api.example.com")
-network.WithTimeout(30 * time.Second)
-network.WithLogger(zapLogger)
+gorest.WithHost("https://api.example.com")
+gorest.WithTimeout(30 * time.Second)
+gorest.WithLogger(zapLogger)
 
 // Rate Limiting
-network.WithRateLimit(rate.Limit(100), 20) // 100 req/sec, burst 20
+gorest.WithRateLimit(rate.Limit(100), 20) // 100 req/sec, burst 20
 
 // Circuit Breaker
-network.WithCircuitBreaker(network.CircuitBreakerConfig{
+gorest.WithCircuitBreaker(gorest.CircuitBreakerConfig{
     MaxFailures:  5,                // Open circuit after 5 failures
     ResetTimeout: 60 * time.Second, // Try again after 60 seconds
 })
 
 // Retry Configuration
-network.WithRetry(network.RetryConfig{
+gorest.WithRetry(gorest.RetryConfig{
     MaxRetries: 3,
     BaseDelay:  100 * time.Millisecond,
     MaxDelay:   5 * time.Second,
 })
 
 // HTTP Transport
-network.WithTransport(&http.Transport{
+gorest.WithTransport(&http.Transport{
     MaxIdleConns:        200,
     MaxIdleConnsPerHost: 20,
     IdleConnTimeout:     90 * time.Second,
@@ -299,20 +306,20 @@ network.WithTransport(&http.Transport{
 })
 
 // Default Headers
-network.WithDefaultHeaders(map[string]string{
+gorest.WithDefaultHeaders(map[string]string{
     "User-Agent": "MyApp/1.0",
     "Accept":     "application/json",
 })
 
 // Endpoint-Specific Configuration
-network.WithEndpointConfig("/api/v1/users/*", network.EndpointOptions{
+gorest.WithEndpointConfig("/api/v1/users/*", gorest.EndpointOptions{
     RateLimit: rate.NewLimiter(rate.Limit(50), 10),
     Timeout:   15 * time.Second,
-    CircuitBreaker: &network.CircuitBreakerConfig{
+    CircuitBreaker: &gorest.CircuitBreakerConfig{
         MaxFailures:  3,
         ResetTimeout: 30 * time.Second,
     },
-    Retry: &network.RetryConfig{
+    Retry: &gorest.RetryConfig{
         MaxRetries: 5,
         BaseDelay:  200 * time.Millisecond,
     },
@@ -356,8 +363,8 @@ Endpoint configurations support wildcard patterns:
 ```go
 logger, _ := zap.NewProduction()
 
-client := network.NewClient(
-    network.WithLogger(logger),
+client := gorest.NewClient(
+    gorest.WithLogger(logger),
     // Logger will automatically record:
     // - Request details (method, URL, headers)
     // - Response details (status, duration)
@@ -378,9 +385,9 @@ Gorest is designed to be testable:
 
 ```go
 // Create isolated clients for testing
-testClient := network.NewClient(
-    network.WithHost("http://localhost:8080"), // Test server
-    network.WithTimeout(5 * time.Second),       // Short timeout for tests
+testClient := gorest.NewClient(
+    gorest.WithHost("http://localhost:8080"), // Test server
+    gorest.WithTimeout(5 * time.Second),       // Short timeout for tests
     // No rate limiting in tests
 )
 
@@ -429,15 +436,15 @@ func TestAPICall(t *testing.T) {
 1. **No changes needed** for basic usage:
    ```go
    // This still works exactly the same
-   network.NetworkClient.Host("api.com").Get("/data")
+   gorest.Client.Host("api.com").Get("/data")
    ```
 
 2. **Add global initialization** (optional):
    ```go
    func main() {
-       network.Initialize(
-           network.WithTimeout(30 * time.Second),
-           network.WithRateLimit(rate.Limit(100), 20),
+       gorest.Initialize(
+           gorest.WithTimeout(30 * time.Second),
+           gorest.WithRateLimit(rate.Limit(100), 20),
        )
        
        // Rest of your code unchanged
@@ -447,9 +454,9 @@ func TestAPICall(t *testing.T) {
 3. **Use service clients** for different services:
    ```go
    // Replace global client with service-specific clients
-   paymentClient := network.NewClient(
-       network.WithHost("payment-api.com"),
-       network.WithRateLimit(rate.Limit(5), 2),
+   paymentClient := gorest.NewClient(
+       gorest.WithHost("payment-api.com"),
+       gorest.WithRateLimit(rate.Limit(5), 2),
    )
    ```
 

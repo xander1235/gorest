@@ -411,9 +411,18 @@ func BenchmarkSSEThroughput(b *testing.B) {
 		case <-stream.Events:
 			eventCount++
 		case err := <-stream.Errors:
-			b.Fatalf("Stream error: %v", err)
+			// Log the error for debugging but don't fail on nil errors
+			if err != nil {
+				b.Fatalf("Stream error: %v", err)
+			} else {
+				// This indicates the stream ended normally
+				b.Logf("Stream completed normally with %d events", eventCount)
+				return
+			}
 		case <-stream.Done:
-			break
+			// Stream completed normally
+			b.Logf("Stream done with %d events", eventCount)
+			return
 		}
 	}
 }

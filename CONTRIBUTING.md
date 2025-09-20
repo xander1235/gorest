@@ -53,17 +53,43 @@ go mod download
 
 ### Testing
 
-Please ensure all tests pass before submitting a PR:
+GoRest v2.0 has comprehensive testing requirements. Please ensure all tests pass before submitting a PR:
 
 ```bash
+# Run all unit tests
 go test ./...
+
+# Run tests with race condition detection
+go test -race ./...
+
+# Run benchmarks
+go test -bench=. -benchmem ./...
 ```
+
+#### Test Structure
+- **Unit Tests**: `*_test.go` files for individual components
+- **Integration Tests**: End-to-end functionality testing
+- **Benchmark Tests**: Performance regression testing with `Benchmark*` functions
+- **Concurrent Safety Tests**: Race condition validation
 
 ### Coding Standards
 
 - Follow Go's official [style guide](https://github.com/golang/go/wiki/CodeReviewComments)
-- Write clear, commented code
-- Include tests for new features
+- Write clear, comprehensive docstrings explaining the "why" not just the "what"
+- Include tests for new features with both unit and integration coverage
+- Ensure thread safety for concurrent usage
+- Add benchmark tests for performance-critical features
+- Use structured logging with appropriate levels
+
+### Performance Considerations
+
+When contributing to GoRest, please consider:
+
+- **Memory Efficiency**: Avoid unnecessary allocations in hot paths
+- **Concurrency**: Ensure new features are thread-safe
+- **Backward Compatibility**: Maintain API compatibility unless it's a breaking change
+- **Documentation**: Update README.md and add godoc comments
+- **Benchmarks**: Add benchmarks for performance-sensitive code
 
 ## License
 

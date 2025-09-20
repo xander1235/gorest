@@ -61,7 +61,8 @@ func (p *SSEParser) parseLoop(stream *types.SSEStream) {
 	defer func() {
 		close(stream.Events)
 		close(stream.Errors)
-		stream.Close()
+		// Note: We don't call stream.Close() here to avoid double-close
+		// The caller is responsible for closing the stream
 	}()
 
 	var event types.SSEEvent

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/xander1235/gorest/types"
+	"github.com/xander1235/gorest/v2/types"
 )
 
 // TestSSEBasicStreaming tests basic SSE streaming functionality

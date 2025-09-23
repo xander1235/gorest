@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	gorest "github.com/xander1235/gorest"
+	gorest "github.com/xander1235/gorest/v2"
 	"golang.org/x/time/rate"
 )
 

@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/xander1235/gorest"
-	"github.com/xander1235/gorest/types"
+	"github.com/xander1235/gorest/v2"
+	"github.com/xander1235/gorest/v2/types"
 )
 
 func main() {

@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	gorest "github.com/xander1235/gorest"
+	gorest "github.com/xander1235/gorest/v2"
 	"go.uber.org/zap"
 )
 

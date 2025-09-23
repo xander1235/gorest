@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/xander1235/gorest/constants/enums"
+	"github.com/xander1235/gorest/v2/constants/enums"
 )
 
 // Test models for multi-host tests
@@ -32,7 +32,7 @@ func TestMultiEndpoints_DifferentHosts(t *testing.T) {
 
 	service2Server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := ServiceResponse{
-			Service: "service2", 
+			Service: "service2",
 			Status:  "healthy",
 			Host:    r.Host,
 		}
@@ -65,7 +65,7 @@ func TestMultiEndpoints_DifferentHosts(t *testing.T) {
 		},
 		{
 			Endpoint: "/health",
-			Method:   enums.GET, 
+			Method:   enums.GET,
 			Host:     service2Server.URL,
 			Response: &service2Resp,
 		},
@@ -101,7 +101,7 @@ func TestMultiEndpoints_MixedHosts_ClientFallback(t *testing.T) {
 	primaryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := ServiceResponse{
 			Service: "primary",
-			Status:  "ok", 
+			Status:  "ok",
 			Host:    r.Host,
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -132,7 +132,7 @@ func TestMultiEndpoints_MixedHosts_ClientFallback(t *testing.T) {
 			Response: &primaryResp,
 		},
 		{
-			Endpoint: "/endpoint2", 
+			Endpoint: "/endpoint2",
 			Method:   enums.GET,
 			Host:     secondaryServer.URL, // Different specific host
 			Response: &secondaryResp,
@@ -191,7 +191,7 @@ func TestWorkflow_DifferentHosts(t *testing.T) {
 	authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var authReq map[string]interface{}
 		json.NewDecoder(r.Body).Decode(&authReq)
-		
+
 		if authReq["username"] == "admin" && authReq["password"] == "secret" {
 			response := map[string]interface{}{
 				"token":   "jwt-token-123",
@@ -216,7 +216,7 @@ func TestWorkflow_DifferentHosts(t *testing.T) {
 
 		var userReq map[string]interface{}
 		json.NewDecoder(r.Body).Decode(&userReq)
-		
+
 		response := map[string]interface{}{
 			"id":      123,
 			"name":    userReq["name"],
@@ -231,7 +231,7 @@ func TestWorkflow_DifferentHosts(t *testing.T) {
 	notificationServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var notifReq map[string]interface{}
 		json.NewDecoder(r.Body).Decode(&notifReq)
-		
+
 		response := map[string]interface{}{
 			"sent":    true,
 			"to":      notifReq["to"],
@@ -262,7 +262,7 @@ func TestWorkflow_DifferentHosts(t *testing.T) {
 			StopOnError: true,
 		},
 		{
-			Name:     "create_user", 
+			Name:     "create_user",
 			Endpoint: "/users",
 			Method:   enums.POST,
 			Host:     userServer.URL, // User service host
@@ -376,7 +376,7 @@ func TestWorkflow_MixedHosts_ClientFallback(t *testing.T) {
 		},
 		{
 			Name:     "step2",
-			Endpoint: "/endpoint2", 
+			Endpoint: "/endpoint2",
 			Method:   enums.GET,
 			// No Host - should use client host fallback
 			Response: &step2Resp,

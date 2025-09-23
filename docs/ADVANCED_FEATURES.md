@@ -29,8 +29,8 @@ Multi-endpoint requests allow you to send the same request body (with optional t
 package main
 
 import (
-    "github.com/xander1235/gorest"
-    "github.com/xander1235/gorest/constants/enums"
+    "github.com/xander1235/gorest/v2"
+    "github.com/xander1235/gorest/v2/constants/enums"
 )
 
 func main() {
@@ -215,8 +215,8 @@ The DAG (Directed Acyclic Graph) workflow system enables complex request orchest
 package main
 
 import (
-    "github.com/xander1235/gorest"
-    "github.com/xander1235/gorest/constants/enums"
+    "github.com/xander1235/gorest/v2"
+    "github.com/xander1235/gorest/v2/constants/enums"
     "time"
 )
 

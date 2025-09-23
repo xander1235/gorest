@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/xander1235/gorest/constants"
-	"github.com/xander1235/gorest/constants/enums"
-	"github.com/xander1235/gorest/exceptions"
-	"github.com/xander1235/gorest/exceptions/errors"
+	"github.com/xander1235/gorest/v2/constants"
+	"github.com/xander1235/gorest/v2/constants/enums"
+	"github.com/xander1235/gorest/v2/exceptions"
+	"github.com/xander1235/gorest/v2/exceptions/errors"
 	"io"
 )
 
@@ -250,11 +250,11 @@ func (nc *NetworkClient) buildMultipartRequest(method enums.HttpMethods, endpoin
 
 	// Add headers and finalize request (this sets Content-Type from nc.requestType)
 	req = nc.finalizeHTTPRequest(req)
-	
+
 	// Override Content-Type header with actual multipart content type (includes boundary)
 	// Do this AFTER finalization to ensure the correct multipart content type is used
 	req.Header.Set("Content-Type", contentType)
-	
+
 	return req, nil
 }
 

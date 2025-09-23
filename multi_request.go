@@ -4,35 +4,35 @@ import (
 	"context"
 	"sync"
 
-	"github.com/xander1235/gorest/constants/enums"
-	"github.com/xander1235/gorest/exceptions/errors"
+	"github.com/xander1235/gorest/v2/constants/enums"
+	"github.com/xander1235/gorest/v2/exceptions/errors"
 )
 
 // MultiRequestTarget defines a target endpoint for multi-endpoint requests
 type MultiRequestTarget struct {
 	// Endpoint is the URL path to send the request to
 	Endpoint string
-	
+
 	// Method is the HTTP method to use for this endpoint
 	Method enums.HttpMethods
-	
+
 	// Host is the optional base URL for this specific endpoint (e.g., "https://api.service1.com")
 	// If empty, the client's host will be used as fallback
 	Host string
-	
+
 	// Transform is an optional function to transform the base request body
 	// for this specific endpoint. If nil, the base body will be used as-is.
 	Transform func(baseBody interface{}) interface{}
-	
+
 	// Headers are endpoint-specific headers to add/override for this request
 	Headers map[string]string
-	
+
 	// Params are endpoint-specific query parameters for this request
 	Params map[string]string
-	
+
 	// Response is a pointer to struct where this endpoint's response should be stored
 	Response interface{}
-	
+
 	// Context allows per-endpoint request context (timeout, cancellation)
 	Context context.Context
 }
@@ -41,13 +41,13 @@ type MultiRequestTarget struct {
 type MultiRequestResult struct {
 	// Target is the original target configuration used for this request
 	Target *MultiRequestTarget
-	
+
 	// Error contains any error that occurred during the request
 	Error *errors.ErrorDetails
-	
+
 	// Success indicates whether the request completed successfully
 	Success bool
-	
+
 	// Index is the position of this target in the original targets slice
 	Index int
 }
@@ -57,16 +57,16 @@ type MultiRequestResponse struct {
 	// Results contains the result for each endpoint request in the same order
 	// as the original targets slice
 	Results []*MultiRequestResult
-	
+
 	// SuccessCount is the number of requests that completed successfully
 	SuccessCount int
-	
+
 	// FailureCount is the number of requests that failed
 	FailureCount int
-	
+
 	// HasErrors indicates if any requests failed
 	HasErrors bool
-	
+
 	// Success indicates if all requests completed successfully (no errors)
 	Success bool
 }
@@ -110,7 +110,7 @@ type MultiRequestResponse struct {
 //	        },
 //	    },
 //	    {
-//	        Endpoint: "/profiles", 
+//	        Endpoint: "/profiles",
 //	        Method: enums.POST,
 //	        // Use original body without transformation
 //	    },
@@ -118,7 +118,7 @@ type MultiRequestResponse struct {
 //	result := client.Body(userData).ExecuteMultiEndpoints(targets, false)
 func (nc *NetworkClient) ExecuteMultiEndpoints(targets []*MultiRequestTarget, parallel bool) *MultiRequestResponse {
 	copyClient := nc.ensureRequestCopy()
-	
+
 	if parallel {
 		return copyClient.executeMultiEndpointsParallel(targets)
 	}
@@ -129,7 +129,7 @@ func (nc *NetworkClient) ExecuteMultiEndpoints(targets []*MultiRequestTarget, pa
 func (nc *NetworkClient) executeMultiEndpointsParallel(targets []*MultiRequestTarget) *MultiRequestResponse {
 	var wg sync.WaitGroup
 	results := make([]*MultiRequestResult, len(targets))
-	
+
 	// Execute all requests concurrently
 	for i, target := range targets {
 		wg.Add(1)
@@ -138,22 +138,22 @@ func (nc *NetworkClient) executeMultiEndpointsParallel(targets []*MultiRequestTa
 			results[index] = nc.executeSingleTarget(tgt, index)
 		}(i, target)
 	}
-	
+
 	// Wait for all requests to complete
 	wg.Wait()
-	
+
 	return nc.buildMultiRequestResponse(results)
 }
 
 // executeMultiEndpointsSequential executes requests to multiple endpoints one by one
 func (nc *NetworkClient) executeMultiEndpointsSequential(targets []*MultiRequestTarget) *MultiRequestResponse {
 	results := make([]*MultiRequestResult, len(targets))
-	
+
 	// Execute requests sequentially
 	for i, target := range targets {
 		results[i] = nc.executeSingleTarget(target, i)
 	}
-	
+
 	return nc.buildMultiRequestResponse(results)
 }
 
@@ -161,7 +161,7 @@ func (nc *NetworkClient) executeMultiEndpointsSequential(targets []*MultiRequest
 func (nc *NetworkClient) executeSingleTarget(target *MultiRequestTarget, index int) *MultiRequestResult {
 	// Create a copy for this specific target to avoid interference
 	targetClient := nc.copyForRequest()
-	
+
 	// Set host for this target - use target-specific host or fallback to client host
 	if target.Host != "" {
 		targetClient.host = target.Host
@@ -169,12 +169,12 @@ func (nc *NetworkClient) executeSingleTarget(target *MultiRequestTarget, index i
 		// Fallback to original client's host if neither target nor client has one
 		targetClient.host = nc.host
 	}
-	
+
 	// Return error immediately if no host is available
 	if targetClient.host == "" {
 		return &MultiRequestResult{
-			Target:  target,
-			Error:   &errors.ErrorDetails{
+			Target: target,
+			Error: &errors.ErrorDetails{
 				Message:      "No host specified for endpoint " + target.Endpoint + ". Provide host via target.Host or client.Host()",
 				ResponseCode: 0,
 			},
@@ -182,8 +182,7 @@ func (nc *NetworkClient) executeSingleTarget(target *MultiRequestTarget, index i
 			Index:   index,
 		}
 	}
-	
-	
+
 	// Apply target-specific headers
 	if target.Headers != nil {
 		if targetClient.headers == nil {
@@ -193,7 +192,7 @@ func (nc *NetworkClient) executeSingleTarget(target *MultiRequestTarget, index i
 			targetClient.headers[k] = v
 		}
 	}
-	
+
 	// Apply target-specific parameters
 	if target.Params != nil {
 		if targetClient.params == nil {
@@ -203,25 +202,25 @@ func (nc *NetworkClient) executeSingleTarget(target *MultiRequestTarget, index i
 			targetClient.params[k] = v
 		}
 	}
-	
+
 	// Apply body transformation if provided
 	if target.Transform != nil && targetClient.body != nil {
 		targetClient.body = target.Transform(targetClient.body)
 	}
-	
+
 	// Set response target if provided
 	if target.Response != nil {
 		targetClient.response = target.Response
 	}
-	
+
 	// Set context if provided
 	if target.Context != nil {
 		targetClient.ctx = target.Context
 	}
-	
+
 	// Execute the request
 	err := targetClient.executeRequest(target.Method, target.Endpoint)
-	
+
 	return &MultiRequestResult{
 		Target:  target,
 		Error:   err,
@@ -235,7 +234,7 @@ func (nc *NetworkClient) buildMultiRequestResponse(results []*MultiRequestResult
 	successCount := 0
 	failureCount := 0
 	hasErrors := false
-	
+
 	for _, result := range results {
 		if result.Success {
 			successCount++
@@ -244,8 +243,8 @@ func (nc *NetworkClient) buildMultiRequestResponse(results []*MultiRequestResult
 			hasErrors = true
 		}
 	}
-	
-return &MultiRequestResponse{
+
+	return &MultiRequestResponse{
 		Results:      results,
 		SuccessCount: successCount,
 		FailureCount: failureCount,

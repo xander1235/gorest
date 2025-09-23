@@ -3,8 +3,8 @@ package parsers
 
 import (
 	"encoding/json"
-	"github.com/xander1235/gorest/exceptions"
-	"github.com/xander1235/gorest/exceptions/errors"
+	"github.com/xander1235/gorest/v2/exceptions"
+	"github.com/xander1235/gorest/v2/exceptions/errors"
 	"strings"
 )
 

@@ -9,10 +9,10 @@ import (
 	"math"
 	"time"
 
-	"github.com/xander1235/gorest/constants"
-	"github.com/xander1235/gorest/constants/enums"
-	"github.com/xander1235/gorest/exceptions"
-	"github.com/xander1235/gorest/exceptions/errors"
+	"github.com/xander1235/gorest/v2/constants"
+	"github.com/xander1235/gorest/v2/constants/enums"
+	"github.com/xander1235/gorest/v2/exceptions"
+	"github.com/xander1235/gorest/v2/exceptions/errors"
 )
 
 // executeRequest is the main request execution pipeline that coordinates all

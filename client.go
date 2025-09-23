@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/xander1235/gorest/constants/enums"
-	"github.com/xander1235/gorest/exceptions/errors"
-	"github.com/xander1235/gorest/parsers"
-	"github.com/xander1235/gorest/types"
+	"github.com/xander1235/gorest/v2/constants/enums"
+	"github.com/xander1235/gorest/v2/exceptions/errors"
+	"github.com/xander1235/gorest/v2/parsers"
+	"github.com/xander1235/gorest/v2/types"
 )
 
 // === GLOBAL CLIENT MANAGEMENT ===

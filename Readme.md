@@ -1,9 +1,9 @@
 # Gorest v2.0
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/xander1235/gorest.svg)](https://pkg.go.dev/github.com/xander1235/gorest)
-[![Go Report Card](https://goreportcard.com/badge/github.com/xander1235/gorest)](https://goreportcard.com/report/github.com/xander1235/gorest)
+[![Go Reference](https://pkg.go.dev/badge/github.com/xander1235/gorest/v2.svg)](https://pkg.go.dev/github.com/xander1235/gorest/v2)
+[![Go Report Card](https://goreportcard.com/badge/github.com/xander1235/gorest/v2)](https://goreportcard.com/report/github.com/xander1235/gorest/v2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Performance](https://img.shields.io/badge/Performance-60K%2B%20ops%2Fsec-brightgreen)](https://github.com/xander1235/gorest#-performance)
+[![Performance](https://img.shields.io/badge/Performance-60K%2B%20ops%2Fsec-brightgreen)](https://github.com/xander1235/gorest/v2#-performance)
 
 ## Overview
 Gorest is a powerful, production-ready Go HTTP client library with advanced features like rate limiting, circuit breaker, retry mechanisms, and endpoint-specific configurations. It supports JSON, multipart, and form URL-encoded request types with a clean, fluent API.
@@ -40,7 +40,7 @@ Gorest is a powerful, production-ready Go HTTP client library with advanced feat
 ## 📦 Installation
 
 ```bash
-go get -u github.com/xander1235/gorest
+go get -u github.com/xander1235/gorest/v2
 ```
 
 ## 🏁 Quick Start
@@ -49,7 +49,7 @@ go get -u github.com/xander1235/gorest
 ```go
 package main
 
-import \"github.com/xander1235/gorest\"
+import \"github.com/xander1235/gorest/v2\"
 
 type User struct {
     ID   int    `json:"id"`
@@ -90,8 +90,8 @@ DAG (Directed Acyclic Graph) Workflows enable complex request orchestration with
 package main
 
 import (
-    "github.com/xander1235/gorest"
-    "github.com/xander1235/gorest/constants/enums"
+    "github.com/xander1235/gorest/v2"
+    "github.com/xander1235/gorest/v2/constants/enums"
 )
 
 type AuthResponse struct {
@@ -952,8 +952,8 @@ This project is licensed under the [MIT License](LICENSE).
 
 For questions and support:
 - 📧 Email: [rathodveerender25@gmail.com](rathodveerender25@gmail.com)
-- 🐛 Issues: [GitHub Issues](https://github.com/xander1235/gorest/issues)
-- 📖 Documentation: [API Docs](https://pkg.go.dev/github.com/xander1235/gorest)
+- 🐛 Issues: [GitHub Issues](https://github.com/xander1235/gorest/v2/issues)
+- 📖 Documentation: [API Docs](https://pkg.go.dev/github.com/xander1235/gorest/v2)
 
 ## 🛡️ Security
 

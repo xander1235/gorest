@@ -2,7 +2,7 @@
 package exceptions
 
 import (
-	"github.com/xander1235/gorest/exceptions/errors"
+	"github.com/xander1235/gorest/v2/exceptions/errors"
 	"time"
 )
 

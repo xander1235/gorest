@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/xander1235/gorest/constants/enums"
-	"github.com/xander1235/gorest/exceptions/errors"
+	"github.com/xander1235/gorest/v2/constants/enums"
+	"github.com/xander1235/gorest/v2/exceptions/errors"
 )
 
 // Test models for multi-endpoint tests
@@ -30,12 +30,12 @@ func TestExecuteMultiEndpoints_ParallelRequests(t *testing.T) {
 	// Create test server with multiple endpoints
 	requestCount := 0
 	var mu sync.Mutex
-	
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		requestCount++
 		mu.Unlock()
-		
+
 		switch r.URL.Path {
 		case "/users":
 			response := TestUser{ID: 1, Name: "John Doe", Email: "john@example.com"}
@@ -55,10 +55,10 @@ func TestExecuteMultiEndpoints_ParallelRequests(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient()
-	
+
 	var user TestUser
 	var status TestStatus
-	
+
 	targets := []*MultiRequestTarget{
 		{
 			Endpoint: "/users",
@@ -93,7 +93,7 @@ func TestExecuteMultiEndpoints_ParallelRequests(t *testing.T) {
 
 	// Verify requests were actually made
 	assert.Equal(t, 3, requestCount)
-	
+
 	// Parallel requests should be faster than sequential (rough check)
 	assert.Less(t, duration, 1*time.Second, "Parallel requests should complete quickly")
 }
@@ -101,15 +101,15 @@ func TestExecuteMultiEndpoints_ParallelRequests(t *testing.T) {
 func TestExecuteMultiEndpoints_SequentialRequests(t *testing.T) {
 	requestOrder := []string{}
 	var mu sync.Mutex
-	
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		requestOrder = append(requestOrder, r.URL.Path)
 		mu.Unlock()
-		
+
 		// Add small delay to verify sequential execution
 		time.Sleep(10 * time.Millisecond)
-		
+
 		switch r.URL.Path {
 		case "/step1":
 			w.Write([]byte(`{"step": 1}`))
@@ -124,7 +124,7 @@ func TestExecuteMultiEndpoints_SequentialRequests(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient()
-	
+
 	targets := []*MultiRequestTarget{
 		{Endpoint: "/step1", Method: enums.GET},
 		{Endpoint: "/step2", Method: enums.GET},
@@ -148,25 +148,25 @@ func TestExecuteMultiEndpoints_SequentialRequests(t *testing.T) {
 func TestExecuteMultiEndpoints_WithTransformations(t *testing.T) {
 	receivedBodies := []string{}
 	var mu sync.Mutex
-	
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := json.Marshal(readJSONBody(r))
 		mu.Lock()
 		receivedBodies = append(receivedBodies, string(body))
 		mu.Unlock()
-		
+
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
 	client := NewClient()
-	
+
 	baseData := map[string]interface{}{
 		"name":  "John",
 		"email": "john@example.com",
 	}
-	
+
 	targets := []*MultiRequestTarget{
 		{
 			Endpoint: "/users",
@@ -204,21 +204,21 @@ func TestExecuteMultiEndpoints_WithTransformations(t *testing.T) {
 	// Verify transformations were applied
 	mu.Lock()
 	assert.Len(t, receivedBodies, 3)
-	
+
 	// Check first transformation (users endpoint)
 	var userData map[string]interface{}
 	json.Unmarshal([]byte(receivedBodies[0]), &userData)
 	assert.Equal(t, "api", userData["source"])
 	assert.Equal(t, "user", userData["type"])
 	assert.Equal(t, "John", userData["name"])
-	
+
 	// Check second transformation (profiles endpoint)
 	var profileData map[string]interface{}
 	json.Unmarshal([]byte(receivedBodies[1]), &profileData)
 	assert.Equal(t, "profile", profileData["source"])
 	assert.Equal(t, true, profileData["verified"])
 	assert.Equal(t, "John", profileData["name"])
-	
+
 	// Check third request (no transformation)
 	var contactData map[string]interface{}
 	json.Unmarshal([]byte(receivedBodies[2]), &contactData)
@@ -244,7 +244,7 @@ func TestExecuteMultiEndpoints_WithFailures(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient()
-	
+
 	targets := []*MultiRequestTarget{
 		{Endpoint: "/success", Method: enums.GET},
 		{Endpoint: "/failure", Method: enums.GET},
@@ -262,12 +262,12 @@ func TestExecuteMultiEndpoints_WithFailures(t *testing.T) {
 	// Check individual results
 	successResults := result.GetSuccessfulResults()
 	failedResults := result.GetFailedResults()
-	
+
 	assert.Len(t, successResults, 1)
 	assert.Equal(t, "/success", successResults[0].Target.Endpoint)
-	
+
 	assert.Len(t, failedResults, 2)
-	
+
 	errorSummary := result.GetErrorSummary()
 	assert.Len(t, errorSummary, 2)
 	assert.Contains(t, errorSummary, "/failure")
@@ -277,7 +277,7 @@ func TestExecuteMultiEndpoints_WithFailures(t *testing.T) {
 func TestExecuteMultiEndpoints_WithCustomHeaders(t *testing.T) {
 	receivedHeaders := make(map[string]map[string]string)
 	var mu sync.Mutex
-	
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		headers := make(map[string]string)
 		for name, values := range r.Header {
@@ -285,18 +285,18 @@ func TestExecuteMultiEndpoints_WithCustomHeaders(t *testing.T) {
 				headers[name] = values[0]
 			}
 		}
-		
+
 		mu.Lock()
 		receivedHeaders[r.URL.Path] = headers
 		mu.Unlock()
-		
+
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
 	client := NewClient()
-	
+
 	targets := []*MultiRequestTarget{
 		{
 			Endpoint: "/service1",
@@ -322,17 +322,17 @@ func TestExecuteMultiEndpoints_WithCustomHeaders(t *testing.T) {
 		ExecuteMultiEndpoints(targets, true)
 
 	assert.True(t, result.Success)
-	
+
 	// Verify headers were applied correctly
 	mu.Lock()
 	service1Headers := receivedHeaders["/service1"]
 	service2Headers := receivedHeaders["/service2"]
-	
+
 	// Check service1 headers
 	assert.Equal(t, "service1", service1Headers["X-Service"])
 	assert.Equal(t, "v1", service1Headers["X-Version"])
 	assert.Equal(t, "global", service1Headers["X-Global"])
-	
+
 	// Check service2 headers
 	assert.Equal(t, "service2", service2Headers["X-Service"])
 	assert.Equal(t, "v2", service2Headers["X-Version"])
@@ -352,11 +352,11 @@ func TestExecuteMultiEndpoints_WithContextTimeout(t *testing.T) {
 	defer server.Close()
 
 	client := NewClient()
-	
+
 	// Create context with short timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	
+
 	targets := []*MultiRequestTarget{
 		{
 			Endpoint: "/fast",
@@ -375,7 +375,7 @@ func TestExecuteMultiEndpoints_WithContextTimeout(t *testing.T) {
 	assert.False(t, result.Success)
 	assert.Equal(t, 1, result.SuccessCount)
 	assert.Equal(t, 1, result.FailureCount)
-	
+
 	failedResults := result.GetFailedResults()
 	assert.Len(t, failedResults, 1)
 	assert.Equal(t, "/slow", failedResults[0].Target.Endpoint)
@@ -406,30 +406,30 @@ func TestMultiRequestResponse_HelperMethods(t *testing.T) {
 		Success: true,
 		Error:   nil,
 	}
-	
+
 	failureResult := &MultiRequestResult{
 		Target:  &MultiRequestTarget{Endpoint: "/failure"},
 		Success: false,
 		Error:   &errors.ErrorDetails{Message: "Failed"},
 	}
-	
+
 	response := &MultiRequestResponse{
 		Results:      []*MultiRequestResult{successResult, failureResult},
 		SuccessCount: 1,
 		FailureCount: 1,
 		HasErrors:    true,
 	}
-	
+
 	// Test GetSuccessfulResults
 	successResults := response.GetSuccessfulResults()
 	assert.Len(t, successResults, 1)
 	assert.Equal(t, "/success", successResults[0].Target.Endpoint)
-	
+
 	// Test GetFailedResults
 	failedResults := response.GetFailedResults()
 	assert.Len(t, failedResults, 1)
 	assert.Equal(t, "/failure", failedResults[0].Target.Endpoint)
-	
+
 	// Test GetErrorSummary
 	errorSummary := response.GetErrorSummary()
 	assert.Len(t, errorSummary, 1)
@@ -446,7 +446,7 @@ func BenchmarkExecuteMultiEndpoints_Parallel(b *testing.B) {
 	defer server.Close()
 
 	client := NewClient()
-	
+
 	targets := []*MultiRequestTarget{
 		{Endpoint: "/endpoint1", Method: enums.GET},
 		{Endpoint: "/endpoint2", Method: enums.GET},
@@ -470,7 +470,7 @@ func BenchmarkExecuteMultiEndpoints_Sequential(b *testing.B) {
 	defer server.Close()
 
 	client := NewClient()
-	
+
 	targets := []*MultiRequestTarget{
 		{Endpoint: "/endpoint1", Method: enums.GET},
 		{Endpoint: "/endpoint2", Method: enums.GET},

@@ -1,9 +1,14 @@
-# Advanced Features: Multi-Endpoint Requests and DAG Workflows
+# Advanced Features Documentation
 
-GoRest v2.0 introduces powerful features that enable sophisticated HTTP request orchestration:
+GoRest v2.0 provides powerful features for sophisticated HTTP request orchestration and management:
 
 1. **Multi-Endpoint Requests** - Send requests to multiple endpoints with parallel or sequential execution
 2. **DAG Workflow System** - Execute complex workflows with dependency management and automatic parallelization
+3. **Middleware System** - Intercept and modify requests/responses with custom logic
+4. **Server-Sent Events (SSE)** - Real-time streaming with automatic reconnection
+5. **Rate Limiting** - Control request rates with token bucket algorithm
+6. **Circuit Breaker** - Fault tolerance with automatic failure detection
+7. **Retry Mechanism** - Configurable retry policies with exponential backoff
 
 ## Multi-Endpoint Requests
 
@@ -647,6 +652,328 @@ Both multi-endpoint requests and workflows integrate seamlessly with existing Go
 - **Logging**: Comprehensive logging for debugging and monitoring
 - **SSE Streaming**: Can be used within workflow steps
 - **Authentication**: Headers and authentication apply to all requests
+
+## Middleware System
+
+### Overview
+
+The middleware system provides a powerful way to intercept, modify, and enhance HTTP requests and responses. Middlewares execute in a chain, allowing multiple processing steps.
+
+### Use Cases
+
+- **Authentication**: Add auth tokens to all requests
+- **Logging**: Track all API calls and responses
+- **Metrics**: Collect performance and usage statistics
+- **Error Handling**: Transform or retry on specific errors
+- **Request/Response Transformation**: Modify data in flight
+- **Caching**: Implement request caching logic
+
+### Creating Custom Middleware
+
+```go
+type RateLimitMiddleware struct {
+    limiter *rate.Limiter
+}
+
+func (m *RateLimitMiddleware) Execute(ctx *gorest.MiddlewareContext, next gorest.NextFunc) bool {
+    // Check rate limit before request
+    if !m.limiter.Allow() {
+        ctx.Error = &errors.ErrorDetails{
+            Message: "Rate limit exceeded",
+            Code:    "RATE_LIMITED",
+            ResponseCode: 429,
+        }
+        return false // Stop chain execution
+    }
+    
+    return next() // Continue to next middleware
+}
+```
+
+### Middleware Chain Example
+
+```go
+client := gorest.NewClient(
+    gorest.WithMiddleware(
+        &AuthMiddleware{token: "secret"},
+        &LoggingMiddleware{logger: logger},
+        &RetryMiddleware{maxAttempts: 3},
+        &MetricsMiddleware{collector: metrics},
+    ),
+)
+```
+
+### Request Modification Middleware
+
+```go
+type RequestEnrichmentMiddleware struct{}
+
+func (m *RequestEnrichmentMiddleware) Execute(ctx *gorest.MiddlewareContext, next gorest.NextFunc) bool {
+    // Add custom headers
+    ctx.Request.Header.Set("X-Request-ID", uuid.New().String())
+    ctx.Request.Header.Set("X-Client-Version", "2.0")
+    
+    // Store metadata for other middlewares
+    ctx.Metadata["request_time"] = time.Now()
+    
+    // Continue chain
+    result := next()
+    
+    // Process after response
+    if ctx.Response != nil {
+        requestTime := ctx.Metadata["request_time"].(time.Time)
+        fmt.Printf("Request took: %v\n", time.Since(requestTime))
+    }
+    
+    return result
+}
+```
+
+### Error Handling Middleware
+
+```go
+type ErrorTransformMiddleware struct{}
+
+func (m *ErrorTransformMiddleware) Execute(ctx *gorest.MiddlewareContext, next gorest.NextFunc) bool {
+    result := next()
+    
+    if ctx.Error != nil {
+        // Transform specific errors
+        if ctx.Error.ResponseCode == 401 {
+            // Trigger token refresh
+            ctx.Metadata["needs_refresh"] = true
+        }
+        
+        // Log errors
+        log.Printf("Error on %s %s: %s", 
+            ctx.Method, ctx.Endpoint, ctx.Error.Message)
+    }
+    
+    return result
+}
+```
+
+## Server-Sent Events (SSE)
+
+### Overview
+
+SSE support enables real-time streaming of server events with automatic reconnection, event filtering, and buffering capabilities.
+
+### Use Cases
+
+- **Live Updates**: Real-time dashboard updates
+- **Notifications**: Push notifications to clients
+- **Progress Tracking**: Long-running operation status
+- **Log Streaming**: Real-time log monitoring
+- **Market Data**: Stock prices, crypto rates
+
+### Basic SSE Streaming
+
+```go
+func streamEvents(client *gorest.NetworkClient) {
+    stream, err := client.
+        WithSSEConfig(&types.SSEConfig{
+            ReadTimeout:     30 * time.Second,
+            BufferSize:      100,
+            EnableReconnect: true,
+        }).
+        StreamGet("/api/events")
+    
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer stream.Close()
+    
+    // Process events
+    for event := range stream.Events {
+        switch event.Event {
+        case "update":
+            fmt.Printf("Update: %s\n", event.Data)
+        case "delete":
+            fmt.Printf("Deleted: %s\n", event.ID)
+        case "error":
+            fmt.Printf("Error: %s\n", event.Data)
+        }
+    }
+}
+```
+
+### Advanced SSE with Filtering and Reconnection
+
+```go
+config := &types.SSEConfig{
+    ReadTimeout:           30 * time.Second,
+    ReconnectInterval:     5 * time.Second,
+    MaxReconnectAttempts: 10,
+    BufferSize:           200,
+    EnableReconnect:      true,
+    
+    // Filter events before processing
+    EventFilter: func(event types.SSEEvent) bool {
+        // Only process high-priority events
+        return event.Event == "critical" || event.Event == "warning"
+    },
+    
+    // Handle reconnection
+    OnReconnect: func(attempt int) {
+        fmt.Printf("Reconnecting (attempt %d)...\n", attempt)
+    },
+    
+    // Resume from last event
+    LastEventID: "event-12345",
+}
+
+stream, err := client.WithSSEConfig(config).StreamPost("/api/subscribe", subscription)
+```
+
+### SSE with Context and Cancellation
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+defer cancel()
+
+stream, err := client.
+    Context(ctx).
+    WithSSEConfig(&types.SSEConfig{
+        EnableReconnect: false, // Don't reconnect on context cancellation
+    }).
+    StreamGet("/api/live-feed")
+
+if err != nil {
+    log.Fatal(err)
+}
+
+// Process with timeout
+for {
+    select {
+    case event, ok := <-stream.Events:
+        if !ok {
+            return // Stream closed
+        }
+        processEvent(event)
+    case <-ctx.Done():
+        fmt.Println("Streaming timeout")
+        return
+    }
+}
+```
+
+## Rate Limiting Details
+
+### Token Bucket Algorithm
+
+Gorest uses a token bucket algorithm for rate limiting, providing:
+- Smooth rate limiting with burst capacity
+- Per-client and per-endpoint limits
+- Automatic request queuing
+
+### Advanced Configuration
+
+```go
+// Global rate limit with custom wait behavior
+client := gorest.NewClient(
+    gorest.WithRateLimit(rate.Limit(100), 20),
+    gorest.WithRateLimitWaitTimeout(5 * time.Second), // Max wait time
+)
+
+// Different limits for different operations
+client := gorest.NewClient(
+    gorest.WithEndpointConfig("/api/read/*", gorest.EndpointConfig{
+        RateLimit: &gorest.RateLimitConfig{
+            Limit: rate.Limit(1000), // High limit for reads
+            Burst: 100,
+        },
+    }),
+    gorest.WithEndpointConfig("/api/write/*", gorest.EndpointConfig{
+        RateLimit: &gorest.RateLimitConfig{
+            Limit: rate.Limit(10), // Low limit for writes
+            Burst: 5,
+        },
+    }),
+)
+```
+
+## Circuit Breaker Patterns
+
+### States and Transitions
+
+1. **Closed**: Normal operation, requests pass through
+2. **Open**: Circuit open, requests fail immediately
+3. **Half-Open**: Testing recovery with limited requests
+
+### Advanced Circuit Breaker
+
+```go
+config := gorest.CircuitBreakerConfig{
+    // Failure conditions
+    MaxFailures:           10,
+    SuccessiveFailures:    3,
+    FailureRatioThreshold: 0.5,
+    SampleSize:           100,
+    
+    // Recovery settings
+    ResetTimeout:     60 * time.Second,
+    HalfOpenRequests: 5,
+    
+    // Custom failure detection
+    IsFailure: func(err error, statusCode int) bool {
+        // Custom logic to determine failure
+        if err != nil {
+            return true
+        }
+        return statusCode >= 500 || statusCode == 429
+    },
+    
+    // State change callbacks
+    OnStateChange: func(from, to string) {
+        log.Printf("Circuit breaker: %s -> %s\n", from, to)
+    },
+}
+
+client := gorest.NewClient(
+    gorest.WithCircuitBreaker(config),
+)
+```
+
+## Retry Strategies
+
+### Exponential Backoff with Jitter
+
+```go
+retryConfig := gorest.RetryConfig{
+    MaxRetries:      5,
+    BaseDelay:       100 * time.Millisecond,
+    MaxDelay:        30 * time.Second,
+    Multiplier:      2.0,
+    Jitter:          0.1, // 10% jitter
+    RetryableErrors: []int{502, 503, 504},
+    
+    // Custom retry decision
+    RetryIf: func(resp *http.Response, err error) bool {
+        if err != nil {
+            // Retry on network errors
+            return true
+        }
+        
+        // Check Retry-After header
+        if resp.StatusCode == 429 {
+            retryAfter := resp.Header.Get("Retry-After")
+            if retryAfter != "" {
+                // Parse and wait if reasonable
+                return true
+            }
+        }
+        
+        return resp.StatusCode >= 500
+    },
+    
+    // Pre-retry hook
+    OnRetry: func(attempt int, delay time.Duration, err error) {
+        log.Printf("Retry attempt %d after %v due to: %v\n", 
+            attempt, delay, err)
+    },
+}
+```
 
 ## Examples Repository
 

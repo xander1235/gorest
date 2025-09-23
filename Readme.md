@@ -21,9 +21,12 @@ Gorest is a powerful, production-ready Go HTTP client library with advanced feat
 
 ### Advanced Features
 - **DAG Workflows**: Execute complex workflows with dependency management
-- **Endpoint Isolation**: Independent rate limiting and circuit breaking per endpoint
-- **Circuit Breaker**: Fault tolerance with failure detection
-- **Retry Logic**: Configurable retry with exponential backoff
+- **Multi-Endpoint Requests**: Send requests to multiple endpoints in parallel or sequence
+- **Middleware System**: Interceptors for request/response processing
+- **Server-Sent Events (SSE)**: Real-time streaming with automatic reconnection
+- **Rate Limiting**: Token bucket algorithm with per-endpoint limits
+- **Circuit Breaker**: Fault tolerance with automatic failure detection
+- **Retry Mechanism**: Exponential backoff with configurable policies
 - **Endpoint-Specific Config**: Different policies for different endpoints
 - **Connection Pooling**: Optimized HTTP transport configuration
 - **Request/Response Logging**: Structured logging with zap
@@ -263,6 +266,280 @@ response := client.ExecuteDAGWorkflowWithOptions(
 ```
 
 For more advanced workflow examples, see the [Advanced Features Documentation](docs/ADVANCED_FEATURES.md).
+
+## 🔧 Middleware System
+
+### Overview
+Gorest provides a powerful middleware system for intercepting and modifying HTTP requests and responses. Middlewares can transform data, add headers, handle errors, implement custom logging, and more.
+
+### Basic Middleware Example
+```go
+// Custom authentication middleware
+type AuthMiddleware struct {
+    token string
+}
+
+func (m *AuthMiddleware) Execute(ctx *gorest.MiddlewareContext, next gorest.NextFunc) bool {
+    // Add auth header to all requests
+    ctx.Request.Header.Set("Authorization", "Bearer " + m.token)
+    
+    // Continue to next middleware
+    return next()
+}
+
+// Usage
+client := gorest.NewClient(
+    gorest.WithMiddleware(&AuthMiddleware{token: "your-token"}),
+)
+```
+
+### Response Processing Middleware
+```go
+type LoggingMiddleware struct {
+    logger *zap.Logger
+}
+
+func (m *LoggingMiddleware) Execute(ctx *gorest.MiddlewareContext, next gorest.NextFunc) bool {
+    // Log request
+    m.logger.Info("Request", 
+        zap.String("method", ctx.Method),
+        zap.String("endpoint", ctx.Endpoint))
+    
+    // Execute request
+    result := next()
+    
+    // Log response
+    if ctx.Response != nil {
+        m.logger.Info("Response",
+            zap.Int("status", ctx.Response.StatusCode),
+            zap.Duration("duration", ctx.Duration))
+    }
+    
+    return result
+}
+```
+
+## 🌊 Server-Sent Events (SSE)
+
+### Overview
+Gorest supports Server-Sent Events for real-time streaming with automatic reconnection, event filtering, and buffering.
+
+### Basic SSE Streaming
+```go
+stream, err := client.
+    WithSSEConfig(&types.SSEConfig{
+        ReadTimeout:     30 * time.Second,
+        EnableReconnect: true,
+        BufferSize:      100,
+    }).
+    StreamGet("/events")
+
+if err != nil {
+    panic(err)
+}
+defer stream.Close()
+
+// Read events
+for event := range stream.Events {
+    fmt.Printf("Event: %s, Data: %s\n", event.Event, event.Data)
+}
+```
+
+### Filtered SSE with Reconnection
+```go
+stream, err := client.
+    WithSSEConfig(&types.SSEConfig{
+        EnableReconnect:       true,
+        MaxReconnectAttempts: 5,
+        ReconnectInterval:    5 * time.Second,
+        EventFilter: func(event types.SSEEvent) bool {
+            return event.Event == "update" // Only process updates
+        },
+        OnReconnect: func(attempt int) {
+            fmt.Printf("Reconnecting... attempt %d\n", attempt)
+        },
+    }).
+    StreamGet("/live-updates")
+```
+
+## 🔄 Multi-Endpoint Requests
+
+### Overview
+Send the same request to multiple endpoints with transformations, perfect for microservice architectures.
+
+### Parallel Health Checks
+```go
+targets := []*gorest.MultiRequestTarget{
+    {
+        Endpoint: "/service1/health",
+        Method:   enums.GET,
+        Response: &service1Health,
+    },
+    {
+        Endpoint: "/service2/health",
+        Method:   enums.GET,
+        Response: &service2Health,
+    },
+    {
+        Endpoint: "/service3/health",
+        Method:   enums.GET,
+        Response: &service3Health,
+    },
+}
+
+result := client.ExecuteMultiEndpoints(targets, true) // true = parallel
+
+if result.Success {
+    fmt.Printf("All services healthy!\n")
+} else {
+    for _, failed := range result.GetFailedResults() {
+        fmt.Printf("Service %s is down\n", failed.Target.Endpoint)
+    }
+}
+```
+
+### Data Broadcasting with Transformations
+```go
+userData := map[string]interface{}{
+    "name": "John",
+    "email": "john@example.com",
+}
+
+targets := []*gorest.MultiRequestTarget{
+    {
+        Endpoint: "/user-service/users",
+        Method:   enums.POST,
+        Transform: func(body interface{}) interface{} {
+            // Add service-specific field
+            data := body.(map[string]interface{})
+            data["source"] = "api-gateway"
+            return data
+        },
+    },
+    {
+        Endpoint: "/analytics/events",
+        Method:   enums.POST,
+        Transform: func(body interface{}) interface{} {
+            // Transform for analytics service
+            return map[string]interface{}{
+                "event_type": "user_created",
+                "user_data":  body,
+                "timestamp":  time.Now().Unix(),
+            }
+        },
+    },
+}
+
+result := client.Body(userData).ExecuteMultiEndpoints(targets, false) // sequential
+```
+
+## 🚦 Rate Limiting
+
+### Global Rate Limiting
+```go
+client := gorest.NewClient(
+    gorest.WithRateLimit(
+        rate.Limit(100), // 100 requests per second
+        20,              // burst size of 20
+    ),
+)
+```
+
+### Per-Endpoint Rate Limiting
+```go
+client := gorest.NewClient(
+    gorest.WithEndpointConfig("/api/expensive/*", gorest.EndpointConfig{
+        RateLimit: &gorest.RateLimitConfig{
+            Limit: rate.Limit(5), // 5 req/sec for expensive endpoints
+            Burst: 2,
+        },
+    }),
+    gorest.WithEndpointConfig("/api/cheap/*", gorest.EndpointConfig{
+        RateLimit: &gorest.RateLimitConfig{
+            Limit: rate.Limit(1000), // 1000 req/sec for cheap endpoints
+            Burst: 50,
+        },
+    }),
+)
+```
+
+## 🔌 Circuit Breaker
+
+### Configuration
+```go
+client := gorest.NewClient(
+    gorest.WithCircuitBreaker(gorest.CircuitBreakerConfig{
+        MaxFailures:         5,                // Open after 5 failures
+        SuccessiveFailures:  3,                // Or 3 successive failures
+        ResetTimeout:        60 * time.Second, // Try recovery after 60s
+        HalfOpenRequests:    3,                // Allow 3 test requests
+        FailureRatioThreshold: 0.5,            // Open if 50% requests fail
+        SampleSize:          100,              // Sample size for ratio
+    }),
+)
+```
+
+### Per-Endpoint Circuit Breaker
+```go
+client := gorest.NewClient(
+    gorest.WithEndpointConfig("/external-api/*", gorest.EndpointConfig{
+        CircuitBreaker: &gorest.CircuitBreakerConfig{
+            MaxFailures:  3,                // More sensitive for external
+            ResetTimeout: 30 * time.Second,
+        },
+    }),
+)
+```
+
+## 🔁 Retry Mechanism
+
+### Global Retry Configuration
+```go
+client := gorest.NewClient(
+    gorest.WithRetry(gorest.RetryConfig{
+        MaxRetries:      3,
+        BaseDelay:       100 * time.Millisecond,
+        MaxDelay:        5 * time.Second,
+        Multiplier:      2.0,              // Exponential backoff
+        RetryableErrors: []int{502, 503}, // Retry on specific status codes
+    }),
+)
+```
+
+### Per-Endpoint Retry
+```go
+client := gorest.NewClient(
+    gorest.WithEndpointConfig("/flaky-service/*", gorest.EndpointConfig{
+        Retry: &gorest.RetryConfig{
+            MaxRetries: 5,              // More retries for flaky service
+            BaseDelay:  200 * time.Millisecond,
+            MaxDelay:   10 * time.Second,
+        },
+    }),
+)
+```
+
+### Custom Retry Logic
+```go
+client := gorest.NewClient(
+    gorest.WithRetry(gorest.RetryConfig{
+        RetryIf: func(resp *http.Response, err error) bool {
+            // Custom retry logic
+            if err != nil {
+                return true // Retry on any error
+            }
+            if resp.StatusCode == 429 {
+                // Check rate limit headers
+                retryAfter := resp.Header.Get("Retry-After")
+                return retryAfter != ""
+            }
+            return resp.StatusCode >= 500
+        },
+    }),
+)
+```
+
+For more advanced examples, see the [Advanced Features Documentation](docs/ADVANCED_FEATURES.md).
 
 ## ⚙️ Configuration
 
@@ -655,6 +932,9 @@ func TestAPICall(t *testing.T) {
        gorest.WithRateLimit(rate.Limit(5), 2),
    )
    ```
+## 𝌙 Advanced Features
+
+Advanced features are available in the [ADVANCED_FEATURES.md](docs/ADVANCED_FEATURES.md) file.
 
 ## 📜 Changelog
 
@@ -671,7 +951,7 @@ This project is licensed under the [MIT License](LICENSE).
 ## 📞 Support
 
 For questions and support:
-- 📧 Email: [xander1235](https://github.com/xander1235)
+- 📧 Email: [rathodveerender25@gmail.com](rathodveerender25@gmail.com)
 - 🐛 Issues: [GitHub Issues](https://github.com/xander1235/gorest/issues)
 - 📖 Documentation: [API Docs](https://pkg.go.dev/github.com/xander1235/gorest)
 

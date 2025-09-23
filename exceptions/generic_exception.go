@@ -7,7 +7,7 @@ import (
 )
 
 // GenericException creates a new ErrorDetails instance with the given message, error, and HTTP status code.
-func GenericException(message string, error any, httpStatus int) *errors.ErrorDetails {
+func GenericException(message string, error error, httpStatus int) *errors.ErrorDetails {
 	return &errors.ErrorDetails{
 		ErrorTimestamp: time.Now().UnixMilli(),
 		Message:        message,

@@ -26,7 +26,8 @@ If applicable, add error output or logs to help explain your problem.
 **Environment (please complete the following information):**
  - Go version: [e.g. 1.21.0]
  - OS: [e.g. Windows/MacOS/Linux]
- - Version of Gorest: [e.g. v0.0.2]
+ - Version of Gorest: [e.g. v2.0.0]
+ - Feature involved: [e.g. Rate Limiting, Circuit Breaker, Multipart, etc.]
 
 **Additional context**
 Add any other context about the problem here.

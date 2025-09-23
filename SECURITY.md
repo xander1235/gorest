@@ -2,11 +2,13 @@
 
 ## Supported Versions
 
-Currently, we provide security updates for the following versions:
+We provide security updates for the following versions of Gorest:
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.0.1   | :white_check_mark: |
+| Version | Supported          | Status |
+| ------- | ------------------ | ------ |
+| 2.0.x   | :white_check_mark: | Current major release |
+| 1.0.x   | :warning: | Security fixes only until 2025-06-01 |
+| 0.x.x   | :x: | No longer supported |
 
 ## Reporting a Vulnerability
 
@@ -23,6 +25,17 @@ Please include the following information (if applicable):
 - Impact of the issue, including how an attacker might exploit the issue
 
 This information will help us triage your report more quickly.
+
+## Security Features in v2.0
+
+GoRest v2.0 includes several built-in security features:
+
+- **Request Timeout Protection**: Configurable timeouts prevent resource exhaustion
+- **Rate Limiting**: Built-in protection against abuse and DoS attacks
+- **Circuit Breaker**: Prevents cascade failures and service overload
+- **Context Cancellation**: Proper cleanup of resources on request cancellation
+- **Connection Pooling**: Limits concurrent connections to prevent resource exhaustion
+- **Structured Logging**: Security-relevant events are logged for monitoring
 
 ## Disclosure Policy
 

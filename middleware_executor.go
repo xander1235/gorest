@@ -128,17 +128,6 @@ func (nc *NetworkClient) executeSingleAttempt(ctx *MiddlewareContext, isStreamin
 	return nc.processHTTPResponseWithMiddleware(ctx, resp, duration, isStreaming)
 }
 
-// executeHTTPRequestWithMiddleware executes the actual HTTP request within the middleware context.
-// This is called at the end of the middleware chain to perform the actual network request.
-func (nc *NetworkClient) executeHTTPRequestWithMiddleware(ctx *MiddlewareContext, isStreaming bool) bool {
-	// Single-attempt execution using helper
-	if err := nc.attemptHTTPRequestWithMiddleware(ctx, isStreaming); err != nil {
-		ctx.Error = err
-		return false
-	}
-	return true
-}
-
 // attemptHTTPRequestWithMiddleware performs a single HTTP attempt using ctx.Request
 // and returns an error if the attempt fails or the response indicates an error.
 func (nc *NetworkClient) attemptHTTPRequestWithMiddleware(ctx *MiddlewareContext, isStreaming bool) *errors.ErrorDetails {

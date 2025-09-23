@@ -26,7 +26,7 @@ func TestMultiEndpoints_DifferentHosts(t *testing.T) {
 			Host:    r.Host,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer service1Server.Close()
 
@@ -37,7 +37,7 @@ func TestMultiEndpoints_DifferentHosts(t *testing.T) {
 			Host:    r.Host,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer service2Server.Close()
 
@@ -48,7 +48,7 @@ func TestMultiEndpoints_DifferentHosts(t *testing.T) {
 			Host:    r.Host,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer service3Server.Close()
 
@@ -105,7 +105,7 @@ func TestMultiEndpoints_MixedHosts_ClientFallback(t *testing.T) {
 			Host:    r.Host,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer primaryServer.Close()
 
@@ -116,7 +116,7 @@ func TestMultiEndpoints_MixedHosts_ClientFallback(t *testing.T) {
 			Host:    r.Host,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer secondaryServer.Close()
 
@@ -190,7 +190,7 @@ func TestWorkflow_DifferentHosts(t *testing.T) {
 	// Create multiple servers for different workflow steps
 	authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var authReq map[string]interface{}
-		json.NewDecoder(r.Body).Decode(&authReq)
+		_ = json.NewDecoder(r.Body).Decode(&authReq)
 
 		if authReq["username"] == "admin" && authReq["password"] == "secret" {
 			response := map[string]interface{}{
@@ -199,7 +199,7 @@ func TestWorkflow_DifferentHosts(t *testing.T) {
 				"service": "auth-service",
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 		} else {
 			w.WriteHeader(http.StatusUnauthorized)
 		}
@@ -215,7 +215,7 @@ func TestWorkflow_DifferentHosts(t *testing.T) {
 		}
 
 		var userReq map[string]interface{}
-		json.NewDecoder(r.Body).Decode(&userReq)
+		_ = json.NewDecoder(r.Body).Decode(&userReq)
 
 		response := map[string]interface{}{
 			"id":      123,
@@ -224,13 +224,13 @@ func TestWorkflow_DifferentHosts(t *testing.T) {
 			"service": "user-service",
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer userServer.Close()
 
 	notificationServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var notifReq map[string]interface{}
-		json.NewDecoder(r.Body).Decode(&notifReq)
+		_ = json.NewDecoder(r.Body).Decode(&notifReq)
 
 		response := map[string]interface{}{
 			"sent":    true,
@@ -238,7 +238,7 @@ func TestWorkflow_DifferentHosts(t *testing.T) {
 			"service": "notification-service",
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer notificationServer.Close()
 
@@ -347,7 +347,7 @@ func TestWorkflow_MixedHosts_ClientFallback(t *testing.T) {
 			"success": true,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer primaryServer.Close()
 
@@ -358,7 +358,7 @@ func TestWorkflow_MixedHosts_ClientFallback(t *testing.T) {
 			"success": true,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer secondaryServer.Close()
 
@@ -436,14 +436,14 @@ func TestMultiEndpoints_PriorityOrder(t *testing.T) {
 	targetServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := ServiceResponse{Service: "target-server", Status: "ok", Host: r.Host}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer targetServer.Close()
 
 	clientServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := ServiceResponse{Service: "client-server", Status: "ok", Host: r.Host}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer clientServer.Close()
 
@@ -473,14 +473,14 @@ func TestWorkflow_PriorityOrder(t *testing.T) {
 	stepServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := map[string]interface{}{"service": "step-server", "success": true}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer stepServer.Close()
 
 	clientServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := map[string]interface{}{"service": "client-server", "success": true}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer clientServer.Close()
 

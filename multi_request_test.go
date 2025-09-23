@@ -40,14 +40,14 @@ func TestExecuteMultiEndpoints_ParallelRequests(t *testing.T) {
 		case "/users":
 			response := TestUser{ID: 1, Name: "John Doe", Email: "john@example.com"}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 		case "/status":
 			response := TestStatus{Status: "ok", Message: "Service is healthy"}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 		case "/health":
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("OK"))
+			_, _ = w.Write([]byte("OK"))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -112,11 +112,11 @@ func TestExecuteMultiEndpoints_SequentialRequests(t *testing.T) {
 
 		switch r.URL.Path {
 		case "/step1":
-			w.Write([]byte(`{"step": 1}`))
+			_, _ = w.Write([]byte(`{"step": 1}`))
 		case "/step2":
-			w.Write([]byte(`{"step": 2}`))
+			_, _ = w.Write([]byte(`{"step": 2}`))
 		case "/step3":
-			w.Write([]byte(`{"step": 3}`))
+			_, _ = w.Write([]byte(`{"step": 3}`))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -156,7 +156,7 @@ func TestExecuteMultiEndpoints_WithTransformations(t *testing.T) {
 		mu.Unlock()
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -207,21 +207,21 @@ func TestExecuteMultiEndpoints_WithTransformations(t *testing.T) {
 
 	// Check first transformation (users endpoint)
 	var userData map[string]interface{}
-	json.Unmarshal([]byte(receivedBodies[0]), &userData)
+	_ = json.Unmarshal([]byte(receivedBodies[0]), &userData)
 	assert.Equal(t, "api", userData["source"])
 	assert.Equal(t, "user", userData["type"])
 	assert.Equal(t, "John", userData["name"])
 
 	// Check second transformation (profiles endpoint)
 	var profileData map[string]interface{}
-	json.Unmarshal([]byte(receivedBodies[1]), &profileData)
+	_ = json.Unmarshal([]byte(receivedBodies[1]), &profileData)
 	assert.Equal(t, "profile", profileData["source"])
 	assert.Equal(t, true, profileData["verified"])
 	assert.Equal(t, "John", profileData["name"])
 
 	// Check third request (no transformation)
 	var contactData map[string]interface{}
-	json.Unmarshal([]byte(receivedBodies[2]), &contactData)
+	_ = json.Unmarshal([]byte(receivedBodies[2]), &contactData)
 	assert.Equal(t, "John", contactData["name"])
 	assert.Nil(t, contactData["source"]) // Should not have transformation fields
 	mu.Unlock()
@@ -232,13 +232,13 @@ func TestExecuteMultiEndpoints_WithFailures(t *testing.T) {
 		switch r.URL.Path {
 		case "/success":
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"status": "ok"}`))
+			_, _ = w.Write([]byte(`{"status": "ok"}`))
 		case "/failure":
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{"error": "internal error"}`))
+			_, _ = w.Write([]byte(`{"error": "internal error"}`))
 		case "/notfound":
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(`{"error": "not found"}`))
+			_, _ = w.Write([]byte(`{"error": "not found"}`))
 		}
 	}))
 	defer server.Close()
@@ -291,7 +291,7 @@ func TestExecuteMultiEndpoints_WithCustomHeaders(t *testing.T) {
 		mu.Unlock()
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -347,7 +347,7 @@ func TestExecuteMultiEndpoints_WithContextTimeout(t *testing.T) {
 			time.Sleep(200 * time.Millisecond)
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -386,7 +386,7 @@ func readJSONBody(r *http.Request) interface{} {
 	var body interface{}
 	if r.Body != nil {
 		decoder := json.NewDecoder(r.Body)
-		decoder.Decode(&body)
+		_ = decoder.Decode(&body)
 	}
 	return body
 }
@@ -441,7 +441,7 @@ func TestMultiRequestResponse_HelperMethods(t *testing.T) {
 func BenchmarkExecuteMultiEndpoints_Parallel(b *testing.B) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -465,7 +465,7 @@ func BenchmarkExecuteMultiEndpoints_Parallel(b *testing.B) {
 func BenchmarkExecuteMultiEndpoints_Sequential(b *testing.B) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 

@@ -77,7 +77,7 @@ func (p *SSEParser) parseLoop(stream *types.SSEStream) {
 			if p.config.ReadTimeout > 0 {
 				if conn := stream.Response.Body; conn != nil {
 					if tcpConn, ok := conn.(interface{ SetReadDeadline(time.Time) error }); ok {
-						tcpConn.SetReadDeadline(time.Now().Add(p.config.ReadTimeout))
+						_ = tcpConn.SetReadDeadline(time.Now().Add(p.config.ReadTimeout))
 					}
 				}
 			}
@@ -157,9 +157,7 @@ func (p *SSEParser) parseField(line string, event *types.SSEEvent) {
 	value := line[colonIndex+1:]
 
 	// Remove leading space from value if present
-	if strings.HasPrefix(value, " ") {
-		value = value[1:]
-	}
+	value = strings.TrimPrefix(value, " ")
 
 	p.setFieldValue(field, value, event)
 }

@@ -223,7 +223,7 @@ func TestSSEPostStreaming(t *testing.T) {
 
 		// Verify request body (subscription data)
 		body := make([]byte, r.ContentLength)
-		r.Body.Read(body)
+		_, _ = r.Body.Read(body)
 		bodyStr := string(body)
 
 		if !strings.Contains(bodyStr, "topics") {

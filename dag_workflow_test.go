@@ -22,7 +22,7 @@ type TestDAGUser struct {
 func TestDAGWorkflow_SimpleLinearExecution(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -70,7 +70,7 @@ func TestDAGWorkflow_ParallelExecution(t *testing.T) {
 		// Add small delay to make timing more predictable
 		time.Sleep(50 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -160,7 +160,7 @@ func TestDAGWorkflow_ComplexParallelism(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(30 * time.Millisecond) // Simulate work
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -201,7 +201,7 @@ func TestDAGWorkflow_ComplexParallelism(t *testing.T) {
 func TestDAGWorkflow_CycleDetection(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -239,7 +239,7 @@ func TestDAGWorkflow_CycleDetection(t *testing.T) {
 func TestDAGWorkflow_NonExistentDependency(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -265,11 +265,11 @@ func TestDAGWorkflow_ErrorHandlingStopOnError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/fail" {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{"error": "server error"}`))
+			_, _ = w.Write([]byte(`{"error": "server error"}`))
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -309,11 +309,11 @@ func TestDAGWorkflow_ErrorHandlingContinueOnError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/fail" {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{"error": "server error"}`))
+			_, _ = w.Write([]byte(`{"error": "server error"}`))
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -351,13 +351,13 @@ func TestDAGWorkflow_DataDependencyBetweenSteps(t *testing.T) {
 		switch r.URL.Path {
 		case "/user":
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"id": 123, "name": "John"}`))
+			_, _ = w.Write([]byte(`{"id": 123, "name": "John"}`))
 		case "/profile":
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"profile": "created"}`))
+			_, _ = w.Write([]byte(`{"profile": "created"}`))
 		default:
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"success": true}`))
+			_, _ = w.Write([]byte(`{"success": true}`))
 		}
 	}))
 	defer server.Close()
@@ -405,7 +405,7 @@ func TestDAGWorkflow_DataDependencyBetweenSteps(t *testing.T) {
 func TestDAGWorkflow_ConditionalSteps(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -454,12 +454,12 @@ func TestDAGWorkflow_RetryMechanism(t *testing.T) {
 			attemptCount++
 			if attemptCount < 3 {
 				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte(`{"error": "temporary error"}`))
+				_, _ = w.Write([]byte(`{"error": "temporary error"}`))
 				return
 			}
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -508,7 +508,7 @@ func TestDAGWorkflow_MaxConcurrency(t *testing.T) {
 		mutex.Unlock()
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -537,7 +537,7 @@ func TestDAGWorkflow_ContextTimeout(t *testing.T) {
 			time.Sleep(200 * time.Millisecond)
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -583,7 +583,7 @@ func findInSlice(slice []string, item string) int {
 func BenchmarkDAGWorkflow_SimpleParallel(b *testing.B) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -608,7 +608,7 @@ func BenchmarkDAGWorkflow_SimpleParallel(b *testing.B) {
 func BenchmarkDAGWorkflow_ComplexParallel(b *testing.B) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		_, _ = w.Write([]byte(`{"success": true}`))
 	}))
 	defer server.Close()
 
@@ -643,7 +643,7 @@ func TestDAGWorkflow_UserExampleScenario(t *testing.T) {
 		// Add delay to make timing observable
 		time.Sleep(50 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(fmt.Sprintf(`{"step": "%s", "timestamp": %d}`, r.URL.Path, time.Now().UnixNano())))
+		_, _ = w.Write([]byte(fmt.Sprintf(`{"step": "%s", "timestamp": %d}`, r.URL.Path, time.Now().UnixNano())))
 	}))
 	defer server.Close()
 

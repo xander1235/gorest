@@ -2,14 +2,11 @@ package gorest
 
 import (
 	"context"
-	inbuiltErr "errors"
 	"fmt"
 	"go.uber.org/zap"
-	"io"
 	"math"
 	"time"
 
-	"github.com/xander1235/gorest/v2/constants"
 	"github.com/xander1235/gorest/v2/constants/enums"
 	"github.com/xander1235/gorest/v2/exceptions"
 	"github.com/xander1235/gorest/v2/exceptions/errors"
@@ -473,89 +470,3 @@ func (nc *NetworkClient) isCircuitBreakerFailure(err *errors.ErrorDetails) bool 
 	// All other errors (4xx client errors, etc.) don't indicate service issues
 	return false
 }
-
-// executeHTTPRequest performs the actual HTTP request execution with proper
-// content type handling, header management, and response processing.
-//
-// This method handles:
-//   - Request body encoding based on content type (JSON, multipart, form-urlencoded)
-//   - HTTP header management (defaults + request-specific + generated headers)
-//   - Query parameter encoding and URL construction
-//   - Response body reading and parsing
-//   - Error response handling and classification
-//
-// Parameters:
-//   - method: HTTP method to execute
-//   - endpoint: URL path to append to configured host
-//
-// Returns:
-//   - *errors.ErrorDetails: Error information if request failed, nil on success
-func (nc *NetworkClient) executeHTTPRequest(method enums.HttpMethods, endpoint string) *errors.ErrorDetails {
-	// Build the HTTP request based on current requestType/body
-	req, buildErr := nc.buildHTTPRequest(method, endpoint)
-	if buildErr != nil {
-		return buildErr
-	}
-
-	// Ensure context is applied (defensive in case finalize didn't attach it)
-	if nc.ctx != nil {
-		req = req.WithContext(nc.ctx)
-	}
-
-	// Execute request
-	start := time.Now()
-	resp, err := nc.httpClient.Do(req)
-	_ = time.Since(start) // duration available for future logging/metrics
-	if err != nil {
-		return exceptions.GenericException(
-			fmt.Sprintf("HTTP request failed: %s", err.Error()),
-			err,
-			0,
-		)
-	}
-	defer resp.Body.Close()
-
-	// Read response body
-	bodyBytes, readErr := io.ReadAll(resp.Body)
-	if readErr != nil {
-		return exceptions.GenericException(
-			fmt.Sprintf("Failed to read response body: %s", readErr.Error()),
-			readErr,
-			resp.StatusCode,
-		)
-	}
-	bodyString := string(bodyBytes)
-
-	// Process response
-	switch enums.HttpStatus(resp.StatusCode).SeriesType() {
-	case enums.Successful:
-		if nc.response != nil {
-			if parseErr := nc.parser(bodyString, nc.response); parseErr != nil {
-				return parseErr
-			}
-		}
-		return nil
-	case enums.ClientError:
-		errDetails := nc.errorParser(bodyString)
-		return exceptions.GenericException(
-			errDetails.Message,
-			errDetails.Error,
-			resp.StatusCode,
-		)
-	case enums.ServerError:
-		return exceptions.GenericException(
-			constants.SomethingWentWrong,
-			inbuiltErr.New(bodyString),
-			resp.StatusCode,
-		)
-	default:
-		return exceptions.GenericException(
-			fmt.Sprintf("Unexpected HTTP status code: %d", resp.StatusCode),
-			inbuiltErr.New(bodyString),
-			resp.StatusCode,
-		)
-	}
-}
-
-// Removed legacy send*Request helpers that caused recursion. Request building is now
-// centralized in buildHTTPRequest() and execution/processing happens here.

@@ -281,7 +281,7 @@ func TestCopyOnWrite(t *testing.T) {
 	}
 
 	// Verify base client is unmodified
-	if baseClient.headers != nil && len(baseClient.headers) > 0 {
+	if len(baseClient.headers) > 0 {
 		t.Error("Base client should not be modified by request chains")
 	}
 }

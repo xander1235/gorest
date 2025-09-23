@@ -8,7 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- TBD
+- **DAG Workflow System**: New `ExecuteDAGWorkflow` function for executing complex workflows with dependency management
+  - Automatic parallel execution of independent steps
+  - Dependency graph resolution with topological sorting
+  - Conditional step execution based on runtime conditions
+  - Per-step retry configuration with customizable delays
+  - Fine-grained concurrency control
+  - Support for complex workflow patterns (diamond, fork-join, etc.)
+
+### Changed
+- Replaced simple sequential workflow with powerful DAG-based workflow engine
+- Workflow steps now support explicit dependency declarations
+- Enhanced workflow debugging with execution layer visualization
 
 ### Fixed
 - TBD
@@ -22,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Global Configuration**: New `Initialize()` method for one-time global client setup
 - **Service-Level Clients**: New `NewClient()` method for creating service-specific client instances
 - **Configuration Hierarchy**: Global → Service → Endpoint configuration precedence
+- **DAG Workflow System**: New `ExecuteDAGWorkflow` function for defining and executing complex API workflows with dependency management and automatic parallelization.
 
 #### Advanced Network Features
 - **Rate Limiting**: Per-client and per-endpoint rate limiting using `golang.org/x/time/rate`
@@ -64,6 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Content Type Support**: Enhanced JSON, multipart, and form URL-encoded handling
 - **Error Handling**: Improved error messages and error categorization
 - **Context Support**: Better context propagation and cancellation handling
+- **Workflow Engine**: The public workflow API now provides a simplified sequential workflow. This is built on top of a more powerful, but currently internal, DAG (Directed Acyclic Graph) based workflow engine that may be exposed in the future.
 
 ### Configuration Options
 

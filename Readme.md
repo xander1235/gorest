@@ -20,6 +20,7 @@ Gorest is a powerful, production-ready Go HTTP client library with advanced feat
 - **APM Integration**: Custom HTTP client wrapper support
 
 ### Advanced Features
+- **DAG Workflows**: Execute complex workflows with dependency management
 - **Endpoint Isolation**: Independent rate limiting and circuit breaking per endpoint
 - **Circuit Breaker**: Fault tolerance with failure detection
 - **Retry Logic**: Configurable retry with exponential backoff
@@ -67,6 +68,201 @@ func main() {
     }
 }
 ```
+
+## 🔄 DAG Workflows
+
+### Overview
+DAG (Directed Acyclic Graph) Workflows enable complex request orchestration with dependency management. Steps can execute in parallel when they have no dependencies, and dependent steps wait for their prerequisites to complete.
+
+### Key Features
+- **Dependency Management**: Define dependencies between steps
+- **Parallel Execution**: Independent steps run concurrently
+- **Data Sharing**: Pass data between steps using WorkflowContext
+- **Conditional Execution**: Skip steps based on conditions
+- **Error Handling**: Per-step error handling with optional workflow halt
+- **Retry Support**: Built-in retry mechanism for failed steps
+
+### Basic DAG Workflow Example
+```go
+package main
+
+import (
+    "github.com/xander1235/gorest"
+    "github.com/xander1235/gorest/constants/enums"
+)
+
+type AuthResponse struct {
+    Token  string `json:"token"
+    UserID int    `json:"user_id"`
+}
+
+type UserData struct {
+    ID    int    `json:"id"`
+    Name  string `json:"name"`
+    Email string `json:"email"`
+}
+
+type ProfileData struct {
+    UserID  int    `json:"user_id"`
+    Bio     string `json:"bio"`
+    Avatar  string `json:"avatar"`
+}
+
+func main() {
+    client := gorest.NewClient()
+    
+    var authResp AuthResponse
+    var userData UserData
+    var profileData ProfileData
+    
+    // Define workflow steps with dependencies
+    steps := []*gorest.DAGWorkflowStep{
+        {
+            Name:     "authenticate",
+            Endpoint: "/auth/login",
+            Method:   enums.POST,
+            BodyBuilder: func(ctx *gorest.WorkflowContext) interface{} {
+                return map[string]string{
+                    "username": "admin",
+                    "password": "secret",
+                }
+            },
+            Response:    &authResp,
+            StopOnError: true, // Critical step - halt workflow on failure
+        },
+        {
+            Name:         "get_user",
+            Dependencies: []string{"authenticate"}, // Depends on auth
+            Endpoint:     "/users/me",
+            Method:       enums.GET,
+            HeadersBuilder: func(ctx *gorest.WorkflowContext) map[string]string {
+                authResult := ctx.GetStepResult("authenticate")
+                auth := authResult.ResponseData.(*AuthResponse)
+                return map[string]string{
+                    "Authorization": "Bearer " + auth.Token,
+                }
+            },
+            Response: &userData,
+        },
+        {
+            Name:         "get_profile",
+            Dependencies: []string{"authenticate"}, // Also depends on auth
+            Endpoint:     "/profiles/me",
+            Method:       enums.GET,
+            HeadersBuilder: func(ctx *gorest.WorkflowContext) map[string]string {
+                authResult := ctx.GetStepResult("authenticate")
+                auth := authResult.ResponseData.(*AuthResponse)
+                return map[string]string{
+                    "Authorization": "Bearer " + auth.Token,
+                }
+            },
+            Response: &profileData,
+        },
+        {
+            Name:         "update_last_login",
+            Dependencies: []string{"get_user", "get_profile"}, // Waits for both
+            Endpoint:     "/users/last-login",
+            Method:       enums.PUT,
+            BodyBuilder: func(ctx *gorest.WorkflowContext) interface{} {
+                userResult := ctx.GetStepResult("get_user")
+                user := userResult.ResponseData.(*UserData)
+                return map[string]interface{}{
+                    "user_id": user.ID,
+                    "timestamp": time.Now().Unix(),
+                }
+            },
+        },
+    }
+    
+    // Execute the DAG workflow
+    response := client.Host("https://api.example.com").
+        ExecuteDAGWorkflow(steps, nil, nil)
+    
+    if response.Success {
+        fmt.Printf("Workflow completed: %d steps executed\n", response.CompletedSteps)
+        fmt.Printf("User: %+v\n", userData)
+        fmt.Printf("Profile: %+v\n", profileData)
+    } else {
+        fmt.Printf("Workflow failed: %d completed, %d failed\n", 
+            response.CompletedSteps, len(response.FailedSteps))
+    }
+}
+```
+
+### Advanced DAG Features
+
+#### Conditional Step Execution
+```go
+steps := []*gorest.DAGWorkflowStep{
+    {
+        Name:     "check_permission",
+        Endpoint: "/permissions/check",
+        Method:   enums.GET,
+        Response: &permissionResp,
+    },
+    {
+        Name:         "admin_action",
+        Dependencies: []string{"check_permission"},
+        Endpoint:     "/admin/action",
+        Method:       enums.POST,
+        Condition: func(ctx *gorest.WorkflowContext) bool {
+            // Only execute if user has admin permission
+            permResult := ctx.GetStepResult("check_permission")
+            perm := permResult.ResponseData.(*PermissionResponse)
+            return perm.IsAdmin
+        },
+        Response: &adminResp,
+    },
+}
+```
+
+#### Parallel Processing with Dependencies
+```go
+// This creates a diamond-shaped DAG:
+//      step1
+//     /     \
+//   step2  step3
+//     \     /
+//      step4
+steps := []*gorest.DAGWorkflowStep{
+    {
+        Name:     "step1",
+        Endpoint: "/init",
+        Method:   enums.POST,
+    },
+    {
+        Name:         "step2",
+        Dependencies: []string{"step1"},
+        Endpoint:     "/process-a",
+        Method:       enums.POST,
+    },
+    {
+        Name:         "step3",
+        Dependencies: []string{"step1"},
+        Endpoint:     "/process-b",
+        Method:       enums.POST,
+    },
+    {
+        Name:         "step4",
+        Dependencies: []string{"step2", "step3"},
+        Endpoint:     "/finalize",
+        Method:       enums.POST,
+    },
+}
+```
+
+#### With Options for Fine Control
+```go
+response := client.ExecuteDAGWorkflowWithOptions(
+    steps,
+    initialBody,
+    metadata,
+    10,   // maxConcurrency: limit parallel executions
+    true, // stopOnFirstError: halt on any failure
+)
+```
+
+For more advanced workflow examples, see the [Advanced Features Documentation](docs/ADVANCED_FEATURES.md).
 
 ## ⚙️ Configuration
 
@@ -460,6 +656,10 @@ func TestAPICall(t *testing.T) {
    )
    ```
 
+## 📜 Changelog
+
+All notable changes to this project are documented in the [CHANGELOG.md](CHANGELOG.md) file.
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
@@ -474,6 +674,10 @@ For questions and support:
 - 📧 Email: [xander1235](https://github.com/xander1235)
 - 🐛 Issues: [GitHub Issues](https://github.com/xander1235/gorest/issues)
 - 📖 Documentation: [API Docs](https://pkg.go.dev/github.com/xander1235/gorest)
+
+## 🛡️ Security
+
+For security vulnerabilities, please refer to our [Security Policy](SECURITY.md).
 
 ---
 

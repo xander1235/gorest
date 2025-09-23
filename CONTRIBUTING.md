@@ -91,6 +91,47 @@ When contributing to GoRest, please consider:
 - **Documentation**: Update README.md and add godoc comments
 - **Benchmarks**: Add benchmarks for performance-sensitive code
 
+### DAG Workflow Development Guidelines
+
+When working on the DAG workflow system:
+
+#### Design Principles
+- **Dependency Clarity**: Ensure dependencies are explicit and form a valid DAG (no cycles)
+- **Parallel Efficiency**: Maximize opportunities for parallel execution
+- **Error Isolation**: Failed steps should not affect unrelated parallel branches
+- **Resource Management**: Properly manage goroutines and prevent resource leaks
+
+#### Implementation Guidelines
+```go
+// Good: Clear dependencies that allow parallelism
+steps := []*DAGWorkflowStep{
+    {Name: "init"},
+    {Name: "fetchA", Dependencies: []string{"init"}},
+    {Name: "fetchB", Dependencies: []string{"init"}},
+    {Name: "combine", Dependencies: []string{"fetchA", "fetchB"}},
+}
+
+// Avoid: Unnecessary sequential dependencies
+steps := []*DAGWorkflowStep{
+    {Name: "step1"},
+    {Name: "step2", Dependencies: []string{"step1"}},
+    {Name: "step3", Dependencies: []string{"step2"}},
+}
+```
+
+#### Testing Requirements
+- **Dependency Resolution**: Test various DAG topologies (linear, diamond, fork-join)
+- **Parallel Execution**: Verify concurrent step execution with race detection
+- **Error Propagation**: Test StopOnError behavior and partial failures
+- **Conditional Logic**: Validate step conditions and skipping behavior
+- **Performance**: Benchmark parallel vs sequential execution
+
+#### Common Patterns
+1. **Fork-Join**: Multiple parallel paths converging
+2. **Diamond**: Split and merge pattern
+3. **Pipeline**: Sequential processing with parallel branches
+4. **Conditional Branching**: Different paths based on conditions
+
 ## License
 
 By contributing to Gorest, you agree that your contributions will be licensed under the project's [MIT License](LICENSE).

@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 
-	gorest "github.com/xander1235/gorest"
+	gorest "github.com/xander1235/gorest/v2"
 )
 
 // SimpleUser represents a user in the API

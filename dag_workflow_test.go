@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/xander1235/gorest/constants/enums"
+	"github.com/xander1235/gorest/v2/constants/enums"
 )
 
 // TestUser struct for testing responses
@@ -654,7 +654,7 @@ func TestDAGWorkflow_UserExampleScenario(t *testing.T) {
 	// 2. after the 1st request executed successfully, 2nd and 3rd request will be executed parallely.
 	// 3. after the 2nd request executed successfully, 4th request will be executed.
 	// 4. Now the 5th request waits for the completion of 4th request and 3rd request, then executes the 5th request.
-	
+
 	steps := []*DAGWorkflowStep{
 		{
 			Name:     "request1",
@@ -667,14 +667,14 @@ func TestDAGWorkflow_UserExampleScenario(t *testing.T) {
 		{
 			Name:         "request2",
 			Dependencies: []string{"request1"},
-			Endpoint:     "/request2", 
+			Endpoint:     "/request2",
 			Method:       enums.POST,
 			BodyBuilder: func(ctx *WorkflowContext) interface{} {
 				return map[string]interface{}{"step": "second", "after": "request1"}
 			},
 		},
 		{
-			Name:         "request3", 
+			Name:         "request3",
 			Dependencies: []string{"request1"},
 			Endpoint:     "/request3",
 			Method:       enums.POST,
@@ -712,16 +712,16 @@ func TestDAGWorkflow_UserExampleScenario(t *testing.T) {
 	assert.Equal(t, 0, response.SkippedSteps, "No steps should be skipped")
 	assert.Len(t, response.FailedSteps, 0, "No steps should fail")
 
-	// Verify execution layers: 
+	// Verify execution layers:
 	// Layer 1: request1 (50ms)
 	// Layer 2: request2, request3 (50ms - parallel)
-	// Layer 3: request4 (50ms)  
+	// Layer 3: request4 (50ms)
 	// Layer 4: request5 (50ms)
 	// Total should be around 200ms instead of 250ms sequential
 	assert.Equal(t, 4, response.ParallelismStats.TotalExecutionLayers, "Should have 4 execution layers")
 	// Using a more conservative threshold to account for system variability
 	assert.Less(t, executionTime, 300*time.Millisecond, "Parallel execution should be faster than sequential")
-	
+
 	// Verify all steps completed successfully
 	for i := 1; i <= 5; i++ {
 		stepName := fmt.Sprintf("request%d", i)

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xander1235/gorest/constants/enums"
-	"github.com/xander1235/gorest/exceptions/errors"
+	"github.com/xander1235/gorest/v2/constants/enums"
+	"github.com/xander1235/gorest/v2/exceptions/errors"
 	"strings"
 )
 

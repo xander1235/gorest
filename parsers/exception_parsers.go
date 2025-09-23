@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	inbuildErr "errors"
 	"fmt"
-	"github.com/xander1235/gorest/constants"
-	"github.com/xander1235/gorest/exceptions"
-	"github.com/xander1235/gorest/exceptions/errors"
+	"github.com/xander1235/gorest/v2/constants"
+	"github.com/xander1235/gorest/v2/exceptions"
+	"github.com/xander1235/gorest/v2/exceptions/errors"
 	"strings"
 	"time"
 )

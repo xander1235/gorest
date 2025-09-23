@@ -1,13 +1,13 @@
 package gorest
 
 import (
-	"math"
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/xander1235/gorest/exceptions/errors"
+	"github.com/xander1235/gorest/v2/exceptions/errors"
 	"go.uber.org/zap"
 )
 

@@ -1,4 +1,4 @@
-module github.com/xander1235/gorest
+module github.com/xander1235/gorest/v2
 
 go 1.21
 

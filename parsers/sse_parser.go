@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/xander1235/gorest/types"
+	"github.com/xander1235/gorest/v2/types"
 )
 
 // SSEParser handles parsing of Server-Sent Event streams

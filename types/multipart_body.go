@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/xander1235/gorest/constants"
+	"github.com/xander1235/gorest/v2/constants"
 	"io"
 	"mime/multipart"
 	"net/textproto"
@@ -99,7 +99,7 @@ func (b *MultipartBody) CreateBuffer() (*bytes.Buffer, string, error) {
 		// Create a new header for the part
 		h := make(textproto.MIMEHeader)
 		h.Set(constants.ContentDisposition, fmt.Sprintf(`form-data; name="%s"`, part.Name))
-		
+
 		// Set the content type if required
 		if part.IncludeContentType {
 			h.Set(constants.ContentType, part.ContentType)
@@ -108,7 +108,7 @@ func (b *MultipartBody) CreateBuffer() (*bytes.Buffer, string, error) {
 		// Create a new writer for the part
 		switch part.ContentType {
 		case "text/plain":
-			// Create a new writer for the part 
+			// Create a new writer for the part
 			partWriter, err := writer.CreatePart(h)
 			if err != nil {
 				return nil, "", err
@@ -144,13 +144,13 @@ func (b *MultipartBody) CreateBuffer() (*bytes.Buffer, string, error) {
 				return nil, "", err
 			}
 			h.Set(constants.ContentDisposition, fmt.Sprintf(`form-data; name="%s"; filename="%s"`, part.Name, fileInfo.Name()))
-			
+
 			// Create a new writer for the part
 			partWriter, err := writer.CreateFormFile(part.Name, fileInfo.Name())
 			if err != nil {
 				return nil, "", err
 			}
-			
+
 			// Write the value to the part
 			_, err = io.Copy(partWriter, &v)
 			if err != nil {
@@ -164,19 +164,19 @@ func (b *MultipartBody) CreateBuffer() (*bytes.Buffer, string, error) {
 			// Create a new writer for the part
 			v := part.Value.(multipart.FileHeader)
 			h.Set(constants.ContentDisposition, fmt.Sprintf(`form-data; name="%s"; filename="%s"`, part.Name, v.Filename))
-			
+
 			// Create a new writer for the part
 			partWriter, err := writer.CreateFormFile(part.Name, v.Filename)
 			if err != nil {
 				return nil, "", err
 			}
-			
+
 			// Open the file
 			file, err := v.Open()
 			if err != nil {
 				return nil, "", err
 			}
-			
+
 			// Write the file to the part
 			_, err = io.Copy(partWriter, file)
 			if err != nil {

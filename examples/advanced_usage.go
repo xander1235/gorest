@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 
-	"github.com/xander1235/gorest"
+	"github.com/xander1235/gorest/v2"
 )
 
 // User represents a user in the API

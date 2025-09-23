@@ -241,5 +241,5 @@ network.Initialize(
 - Custom headers and query parameters
 - Context-aware request handling
 
-[2.0.0]: https://github.com/xander1235/gorest/compare/v1.0.0...v2.0.0
-[1.0.0]: https://github.com/xander1235/gorest/releases/tag/v1.0.0
+[2.0.0]: https://github.com/xander1235/gorest/v2/compare/v1.0.0...v2.0.0
+[1.0.0]: https://github.com/xander1235/gorest/v2/releases/tag/v1.0.0

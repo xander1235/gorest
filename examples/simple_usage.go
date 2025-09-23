@@ -11,6 +11,19 @@ import (
 	gorest "github.com/xander1235/gorest"
 )
 
+// SimpleUser represents a user in the API
+type SimpleUser struct {
+	ID    int    `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+// SimpleCreateUserRequest represents the request payload for creating a user
+type SimpleCreateUserRequest struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
 func main() {
 	// Initialize global client with default configuration
 	logger, _ := zap.NewDevelopment()
@@ -25,8 +38,8 @@ func main() {
 
 	// Example 1: Simple GET request using the global client
 	fmt.Println("=== Example 1: Global Client GET ===")
-	var user User
-	err := gorest.NetworkClient.
+	var user SimpleUser
+	err := gorest.Client.
 		Host("https://jsonplaceholder.typicode.com").
 		Response(&user).
 		Get("/users/1")
@@ -39,13 +52,13 @@ func main() {
 
 	// Example 2: POST request with JSON body
 	fmt.Println("\n=== Example 2: Global Client POST ===")
-	newUser := CreateUserRequest{
+	newUser := SimpleCreateUserRequest{
 		Name:  "John Doe",
 		Email: "john@example.com",
 	}
 
-	var createdUser User
-	err = gorest.NetworkClient.
+	var createdUser SimpleUser
+	err = gorest.Client.
 		Host("https://jsonplaceholder.typicode.com").
 		Headers(map[string]string{
 			"Content-Type": "application/json",
@@ -71,7 +84,7 @@ func main() {
 		}),
 	)
 
-	var users []User
+	var users []SimpleUser
 	err = userAPIClient.
 		Params(map[string]string{
 			"_limit": "5",

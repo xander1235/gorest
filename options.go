@@ -421,4 +421,7 @@ func WithDefaultHeaders(headers map[string]string) ClientOption {
 			nc.defaultHeaders[k] = v
 		}
 	}
+
+// === MIDDLEWARE AND INTERCEPTOR OPTIONS ===
+
 }

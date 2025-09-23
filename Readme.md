@@ -49,7 +49,7 @@ go get -u github.com/xander1235/gorest/v2
 ```go
 package main
 
-import \"github.com/xander1235/gorest/v2\"
+import "github.com/xander1235/gorest/v2"
 
 type User struct {
     ID   int    `json:"id"`

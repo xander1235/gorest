@@ -5,6 +5,28 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Performance](https://img.shields.io/badge/Performance-60K%2B%20ops%2Fsec-brightgreen)](https://github.com/xander1235/gorest/v2#-performance)
 
+## 📑 Table of Contents
+
+- [Overview](#overview)
+- [Features](#-features)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [DAG Workflows](#-dag-workflows)
+- [Middleware System](#-middleware-system)
+- [Server-Sent Events (SSE)](#-server-sent-events-sse)
+- [Multi-Endpoint Requests](#-multi-endpoint-requests)
+- [Rate Limiting](#-rate-limiting)
+- [Circuit Breaker](#-circuit-breaker)
+- [Retry Mechanism](#-retry-mechanism)
+- [Configuration](#️-configuration)
+- [Usage Examples](#-usage-examples)
+- [Architecture](#️-architecture)
+- [Monitoring & Observability](#-monitoring--observability)
+- [Testing](#-testing)
+- [Performance](#-performance)
+- [Migration from v1.x](#-migration-from-v1x)
+
+
 ## Overview
 Gorest is a powerful, production-ready Go HTTP client library with advanced features like rate limiting, circuit breaker, retry mechanisms, and endpoint-specific configurations. It supports JSON, multipart, and form URL-encoded request types with a clean, fluent API.
 

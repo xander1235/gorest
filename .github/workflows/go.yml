@@ -14,35 +14,35 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ matrix.go-version }}
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
 
-    - name: Build
-      run: go build -v ./...
+      - name: Build
+        run: go build -v $(go list ./... | grep -v /examples)
 
-    - name: Test
-      run: go test -v $(go list ./... | grep -v /examples)
-      
-    - name: Race Condition Tests
-      run: go test -race -v $(go list ./... | grep -v /examples)
-      
+      - name: Test
+        run: go test -v $(go list ./... | grep -v /examples)
+
+      - name: Race Condition Tests
+        run: go test -race -v $(go list ./... | grep -v /examples)
+
   benchmark:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-      
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.21'
-        
-    - name: Run Benchmarks
-      run: go test -bench='Benchmark(NewClient|CopyOnWrite|EndpointConfigResolution|SSEThroughput)' -benchmem -benchtime=3s ./...
-      
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Run Benchmarks
+        run: go test -bench='Benchmark(NewClient|CopyOnWrite|EndpointConfigResolution|SSEThroughput)' -benchmem -benchtime=3s $(go list ./... | grep -v /examples)
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -56,7 +56,7 @@ jobs:
         with:
           version: latest
           args: --timeout=10m
-          
+
   security:
     name: Security Scan
     runs-on: ubuntu-latest

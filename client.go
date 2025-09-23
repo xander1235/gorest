@@ -746,6 +746,7 @@ func (nc *NetworkClient) copyForRequest() *NetworkClient {
 		response:    nc.response,
 		requestType: nc.requestType,
 		ctx:         nc.ctx,
+		sseConfig:   nc.sseConfig,
 		// requestID will be set by ensureRequestCopy()
 	}
 }

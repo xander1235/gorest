@@ -769,3 +769,85 @@ func (nc *NetworkClient) ExecuteDAGWorkflowWithOptions(steps []*DAGWorkflowStep,
 	executor.SetStopOnFirstError(stopOnFirstError)
 	return executor.Execute(initialBody, metadata)
 }
+
+// executeWorkflowStep executes a single step in the workflow
+func (nc *NetworkClient) executeWorkflowStep(step *WorkflowStep, ctx *WorkflowContext, index int) *WorkflowStepResult {
+	// Create a copy for this step
+	stepClient := nc.copyForRequest()
+
+	// Set host for this step - use step-specific host or fallback to client host
+	if step.Host != "" {
+		stepClient.host = step.Host
+	} else if stepClient.host == "" {
+		// Fallback to original client's host if neither step nor client has one
+		stepClient.host = nc.host
+	}
+
+	// Return error immediately if no host is available
+	if stepClient.host == "" {
+		return &WorkflowStepResult{
+			Step: step,
+			Error: &errors.ErrorDetails{
+				Message:      "No host specified for step '" + step.Name + "' endpoint " + step.Endpoint + ". Provide host via step.Host or client.Host()",
+				ResponseCode: 0,
+			},
+			Success:      false,
+			ResponseData: nil,
+			Skipped:      false,
+			Index:        index,
+		}
+	}
+
+	// Build request body using previous responses
+	if step.BodyBuilder != nil {
+		stepClient.body = step.BodyBuilder(ctx)
+	}
+
+	// Build headers using previous responses
+	if step.HeadersBuilder != nil {
+		headers := step.HeadersBuilder(ctx)
+		if headers != nil {
+			if stepClient.headers == nil {
+				stepClient.headers = make(map[string]string)
+			}
+			for k, v := range headers {
+				stepClient.headers[k] = v
+			}
+		}
+	}
+
+	// Build params using previous responses
+	if step.ParamsBuilder != nil {
+		params := step.ParamsBuilder(ctx)
+		if params != nil {
+			if stepClient.params == nil {
+				stepClient.params = make(map[string]string)
+			}
+			for k, v := range params {
+				stepClient.params[k] = v
+			}
+		}
+	}
+
+	// Set response target
+	if step.Response != nil {
+		stepClient.response = step.Response
+	}
+
+	// Set context
+	if step.Context != nil {
+		stepClient.ctx = step.Context
+	}
+
+	// Execute the request
+	err := stepClient.executeRequest(step.Method, step.Endpoint)
+
+	return &WorkflowStepResult{
+		Step:         step,
+		Error:        err,
+		Success:      err == nil,
+		ResponseData: step.Response,
+		Skipped:      false,
+		Index:        index,
+	}
+}
